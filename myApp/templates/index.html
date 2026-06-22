@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>EOD Report Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f4ef;
+    --bg-elevated: #fffdf8;
+    --surface: #ffffff;
+    --ink: #1a1a1a;
+    --ink-soft: #4a4a4a;
+    --ink-mute: #8a8a8a;
+    --ink-faint: #b8b8b8;
+    --line: #e8e3d8;
+    --line-soft: #f0ece2;
+    --accent: #d4583a;
+    --accent-soft: #f5e4dd;
+    --ok: #3f7a3f;
+    --ok-soft: #e4ede0;
+    --warn: #b8860b;
+    --warn-soft: #f5edd4;
+    --info: #4a6fa5;
+    --plan: #6b4e8c;
+    --plan-soft: #ece4f2;
+    --shadow-sm: 0 1px 2px rgba(26,26,26,0.04), 0 1px 1px rgba(26,26,26,0.03);
+    --shadow: 0 4px 12px rgba(26,26,26,0.06), 0 1px 3px rgba(26,26,26,0.04);
+    --shadow-lg: 0 16px 40px rgba(26,26,26,0.08), 0 4px 12px rgba(26,26,26,0.05);
+    --radius: 10px;
+    --radius-lg: 16px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Geist', -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    background-image:
+      radial-gradient(circle at 20% 0%, rgba(212,88,58,0.03), transparent 40%),
+      radial-gradient(circle at 80% 100%, rgba(107,78,140,0.03), transparent 40%);
+  }
+
+  .app {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 40px 28px 80px;
+  }
+
+  .header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 28px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .header-title h1 {
+    font-family: 'Fraunces', serif;
+    font-size: 40px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+  }
+
+  .header-title h1 .accent {
+    font-style: italic;
+    color: var(--accent);
+  }
+
+  .header-title .date {
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--ink-mute);
+    font-family: 'Geist Mono', monospace;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .icon-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--bg-elevated);
+    color: var(--ink-soft);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+  }
+  .icon-btn:hover {
+    border-color: var(--ink-mute);
+    color: var(--ink);
+    transform: translateY(-1px);
+  }
+  .icon-btn svg { width: 16px; height: 16px; }
+
+  .btn-primary {
+    background: var(--ink);
+    color: var(--bg-elevated);
+    border: none;
+    padding: 11px 20px;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.15s ease;
+    box-shadow: var(--shadow-sm);
+  }
+  .btn-primary:hover {
+    background: var(--accent);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
+  }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+  .btn-primary svg { width: 15px; height: 15px; }
+
+  .btn-secondary {
+    background: var(--bg-elevated);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    padding: 9px 16px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .btn-secondary:hover { border-color: var(--ink-mute); }
+
+  .add-section {
+    background: var(--bg-elevated);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 6px 6px 6px 8px;
+    margin-bottom: 10px;
+    box-shadow: var(--shadow-sm);
+    transition: border-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .add-section:focus-within { border-color: var(--ink-mute); }
+
+  .add-section input[type="text"] {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 12px 10px;
+    font-family: inherit;
+    font-size: 15px;
+    color: var(--ink);
+    outline: none;
+    min-width: 0;
+  }
+  .add-section input::placeholder { color: var(--ink-mute); }
+
+  .project-input {
+    border: 1px solid var(--line);
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--ink-soft);
+    outline: none;
+    width: 150px;
+  }
+
+  .add-btn {
+    background: var(--ink);
+    color: var(--bg-elevated);
+    border: none;
+    border-radius: 8px;
+    width: 38px;
+    height: 38px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s ease;
+  }
+  .add-btn:hover { background: var(--accent); }
+  .add-btn svg { width: 16px; height: 16px; }
+
+  .hint-row {
+    font-size: 12px;
+    color: var(--ink-mute);
+    padding: 0 4px 18px;
+    font-family: 'Geist Mono', monospace;
+    letter-spacing: 0.01em;
+  }
+  .hint-row kbd {
+    background: var(--bg-elevated);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-family: inherit;
+    font-size: 11px;
+  }
+
+  .section-label {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    margin: 20px 4px 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-label::before,
+  .section-label::after {
+    content: '';
+    height: 1px;
+    flex: 1;
+    background: var(--line);
+  }
+  .section-label .label-text { color: var(--ink-soft); }
+
+  .task-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .task {
+    background: var(--bg-elevated);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    transition: all 0.15s ease;
+    position: relative;
+  }
+  .task:hover {
+    border-color: var(--ink-mute);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .task.is-done {
+    background: var(--ok-soft);
+    border-color: var(--ok-soft);
+  }
+  .task.is-done .task-text {
+    text-decoration: line-through;
+    color: var(--ink-mute);
+  }
+
+  .task.is-blocked {
+    background: var(--warn-soft);
+    border-color: var(--warn-soft);
+  }
+  .task.is-tomorrow {
+    background: var(--plan-soft);
+    border-color: var(--plan-soft);
+  }
+
+  .check {
+    width: 20px;
+    height: 20px;
+    border: 1.5px solid var(--ink-faint);
+    border-radius: 6px;
+    background: var(--surface);
+    cursor: pointer;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    margin-top: 1px;
+    padding: 0;
+  }
+  .check:hover { border-color: var(--ok); }
+  .check.checked {
+    background: var(--ok);
+    border-color: var(--ok);
+  }
+  .check.checked svg { display: block; }
+  .check svg {
+    width: 12px;
+    height: 12px;
+    color: white;
+    display: none;
+  }
+
+  .task-body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .task-text {
+    word-break: break-word;
+    font-size: 14.5px;
+    line-height: 1.5;
+  }
+
+  .task-blocker-note {
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--warn);
+    font-style: italic;
+    padding: 6px 10px;
+    background: rgba(255,255,255,0.5);
+    border-radius: 6px;
+    border-left: 2px solid var(--warn);
+  }
+  .task-blocker-note::before { content: '⚠  '; font-style: normal; }
+
+  .task-tomorrow-note {
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--plan);
+    font-family: 'Geist Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .task-tomorrow-note::before { content: '→  '; }
+
+  .task-actions {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  .task:hover .task-actions,
+  .task.is-blocked .task-actions,
+  .task.is-tomorrow .task-actions { opacity: 1; }
+
+  .task-action {
+    width: 26px;
+    height: 26px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--ink-mute);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+  }
+  .task-action:hover {
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .task-action.active-block { color: var(--warn); }
+  .task-action.active-tmr { color: var(--plan); }
+  .task-action svg { width: 14px; height: 14px; }
+
+  .empty-state {
+    text-align: center;
+    padding: 48px 16px;
+    color: var(--ink-mute);
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 15px;
+    border: 1px dashed var(--line);
+    border-radius: var(--radius-lg);
+  }
+  .empty-state .emoji {
+    display: block;
+    font-size: 28px;
+    margin-bottom: 8px;
+    font-style: normal;
+  }
+
+  .blocker-editor {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .blocker-editor input {
+    flex: 1;
+    padding: 7px 10px;
+    border: 1px solid var(--warn);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    background: white;
+    outline: none;
+  }
+  .blocker-editor input:focus {
+    border-color: var(--warn);
+    box-shadow: 0 0 0 3px var(--warn-soft);
+  }
+  .blocker-editor button {
+    border: none;
+    background: var(--warn);
+    color: white;
+    padding: 0 12px;
+    font-size: 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .progress-strip {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    font-family: 'Geist Mono', monospace;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .progress-strip span strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  /* Modals */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(26,26,26,0.35);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 20px;
+  }
+  .modal-backdrop.open { display: flex; animation: fadeIn 0.2s ease; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .modal {
+    background: var(--bg-elevated);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    max-width: 720px;
+    width: 100%;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: modalUp 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  @keyframes modalUp {
+    from { transform: translateY(16px); opacity: 0; }
+    to   { transform: translateY(0); opacity: 1; }
+  }
+
+  .modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .modal-title {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+  .modal-title em { color: var(--accent); }
+
+  .modal-body {
+    padding: 20px 24px;
+    overflow: auto;
+    flex: 1;
+  }
+
+  .modal-footer {
+    padding: 14px 24px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    background: var(--bg);
+  }
+
+  .report-output {
+    font-family: 'Geist Mono', monospace;
+    font-size: 13px;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 20px;
+    color: var(--ink);
+    max-height: 60vh;
+    overflow: auto;
+  }
+
+  .settings-field { margin-bottom: 16px; }
+  .settings-field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+  }
+  .settings-field input,
+  .settings-field textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    font-family: 'Geist Mono', monospace;
+    font-size: 13px;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+  .settings-field input:focus,
+  .settings-field textarea:focus { border-color: var(--ink); }
+  .settings-field textarea {
+    min-height: 80px;
+    resize: vertical;
+    font-family: inherit;
+  }
+
+  .settings-hint {
+    font-size: 12px;
+    color: var(--ink-mute);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+  .settings-hint a { color: var(--accent); }
+  .settings-hint code {
+    background: var(--bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+
+  .loader {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--ink);
+    color: var(--bg-elevated);
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 13px;
+    box-shadow: var(--shadow-lg);
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.25s ease;
+    z-index: 200;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .key-status {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-mute);
+    padding: 4px 10px;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    background: var(--bg-elevated);
+  }
+  .key-status.ok {
+    color: var(--ok);
+    border-color: var(--ok-soft);
+    background: var(--ok-soft);
+  }
+  .key-status.missing {
+    color: var(--accent);
+    border-color: var(--accent-soft);
+    background: var(--accent-soft);
+  }
+
+  .meta-footer {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px dashed var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--ink-mute);
+    font-family: 'Geist Mono', monospace;
+  }
+  .meta-footer .danger {
+    color: var(--accent);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+    text-decoration: underline;
+  }
+
+  .tip-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--info);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 18px;
+    font-size: 13px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+  }
+  .tip-card strong { color: var(--ink); }
+
+  .legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--ink-mute);
+  }
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .legend-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <header class="header">
+    <div class="header-title">
+      <h1>End of <span class="accent">Day</span>.</h1>
+      <div class="date" id="today-date"></div>
+    </div>
+    <div class="header-actions">
+      <span class="key-status" id="key-status">checking…</span>
+      <button class="icon-btn" id="btn-settings" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+      <button class="btn-primary" id="btn-generate">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.39 7.36H22l-6.19 4.5 2.36 7.27L12 16.62l-6.17 4.51 2.36-7.27L2 9.36h7.61z"/></svg>
+        Generate EOD
+      </button>
+    </div>
+  </header>
+
+  <div class="tip-card">
+    <strong>One list, smart sorting.</strong> Dump everything you're working on. Check off what's done. Click <strong>⚠</strong> to flag a blocker, <strong>→</strong> to push to tomorrow. When you generate your EOD, done items go to "Completed," unchecked items become "In Progress," and the rest sort themselves.
+    <div class="legend">
+      <span class="legend-item"><span class="legend-swatch" style="background: var(--ok);"></span>Done</span>
+      <span class="legend-item"><span class="legend-swatch" style="background: var(--warn);"></span>Blocked</span>
+      <span class="legend-item"><span class="legend-swatch" style="background: var(--plan);"></span>Tomorrow</span>
+      <span class="legend-item"><span class="legend-swatch" style="background: var(--info);"></span>In progress (default)</span>
+    </div>
+  </div>
+
+  <section class="add-section">
+    <input type="text" id="task-input" placeholder="Add a task…" autocomplete="off"/>
+    <input type="text" class="project-input" id="project-input" placeholder="Project (optional)" autocomplete="off"/>
+    <button class="add-btn" id="btn-add" title="Add task">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+  </section>
+
+  <div class="hint-row">
+    <kbd>Enter</kbd> to add · <kbd>⌘/Ctrl + Enter</kbd> to generate report
+  </div>
+
+  <div id="task-container"></div>
+
+  <div class="meta-footer">
+    <div class="progress-strip" id="progress-strip">
+      <span><strong>0</strong> total</span>
+    </div>
+    <button class="danger" id="btn-clear">Clear all</button>
+  </div>
+
+</div>
+
+<!-- Report modal -->
+<div class="modal-backdrop" id="modal-report">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Your <em>EOD Report</em></div>
+      <button class="icon-btn" data-close="modal-report">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="report-output" id="report-output">Generating…</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="btn-regenerate">Regenerate</button>
+      <button class="btn-secondary" id="btn-copy">Copy</button>
+      <button class="btn-primary" data-close="modal-report">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal-backdrop" id="modal-settings">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Settings</div>
+      <button class="icon-btn" data-close="modal-settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="settings-field">
+        <label for="settings-name">Your Name</label>
+        <input type="text" id="settings-name" placeholder="Bernard Tapiru"/>
+      </div>
+      <div class="settings-field">
+        <div class="settings-hint">OpenAI key is loaded from server <code>.env</code> using <code>dotenv</code>.</div>
+      </div>
+      <div class="settings-field">
+        <label for="settings-model">Model</label>
+        <input type="text" id="settings-model" placeholder="gpt-4o-mini"/>
+        <div class="settings-hint">Try <code>gpt-4o-mini</code> (cheap & fast) or <code>gpt-4o</code> (more polished).</div>
+      </div>
+      <div class="settings-field">
+        <label for="settings-style">Custom style guide (optional)</label>
+        <textarea id="settings-style" placeholder="e.g. keep bullets concise, group by project, avoid marketing tone…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" data-close="modal-settings">Cancel</button>
+      <button class="btn-primary" id="btn-save-settings">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Saved</div>
+
+<script>
+  const KEY_TASKS = 'eod:tasks';
+  const KEY_SETTINGS = 'eod:settings';
+
+  async function storageGet(key, fallback) {
+    try {
+      const res = await window.storage.get(key);
+      if (!res) return fallback;
+      try { return JSON.parse(res.value); } catch { return res.value; }
+    } catch { return fallback; }
+  }
+  async function storageSet(key, value) {
+    try { await window.storage.set(key, JSON.stringify(value)); }
+    catch (e) { console.error('Storage write failed', e); }
+  }
+
+  let tasks = [];
+  let settings = { name: '', model: 'gpt-4o-mini', style: '' };
+
+  const $ = id => document.getElementById(id);
+  const taskInput = $('task-input');
+  const projectInput = $('project-input');
+  const container = $('task-container');
+
+  (async function init() {
+    const d = new Date();
+    $('today-date').textContent = d.toLocaleDateString('en-US', {
+      weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+    });
+
+    tasks = await storageGet(KEY_TASKS, []) || [];
+    settings = { ...settings, ...(await storageGet(KEY_SETTINGS, {}) || {}) };
+
+    render();
+    updateKeyStatus();
+  })();
+
+  function render() {
+    if (tasks.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <span class="emoji">📝</span>
+          Add your first task above. Don't overthink it — dump it all, sort it later.
+        </div>`;
+      updateProgress();
+      return;
+    }
+
+    const byProject = {};
+    tasks.forEach(t => {
+      const key = t.project || '';
+      if (!byProject[key]) byProject[key] = [];
+      byProject[key].push(t);
+    });
+
+    let html = '';
+    const projectKeys = Object.keys(byProject).sort((a, b) => {
+      if (a === '') return 1;
+      if (b === '') return -1;
+      return a.localeCompare(b);
+    });
+
+    projectKeys.forEach(pk => {
+      if (pk) {
+        html += `<div class="section-label"><span class="label-text">${escapeHtml(pk)}</span></div>`;
+      } else if (projectKeys.length > 1) {
+        html += `<div class="section-label"><span class="label-text">No project</span></div>`;
+      }
+      html += '<ul class="task-list">';
+      byProject[pk].forEach(t => html += renderTask(t));
+      html += '</ul>';
+    });
+
+    container.innerHTML = html;
+    attachHandlers();
+    updateProgress();
+  }
+
+  function renderTask(t) {
+    const cls = [
+      'task',
+      t.done ? 'is-done' : '',
+      t.blocker ? 'is-blocked' : '',
+      t.tomorrow ? 'is-tomorrow' : ''
+    ].filter(Boolean).join(' ');
+
+    const blockerHTML = t.blocker
+      ? `<div class="task-blocker-note">${escapeHtml(t.blocker)}</div>`
+      : (t._editingBlocker
+          ? `<div class="blocker-editor">
+               <input type="text" data-blocker-input="${t.id}" placeholder="What's blocking this?" value="${escapeHtml(t._draftBlocker || '')}"/>
+               <button data-blocker-save="${t.id}">Save</button>
+             </div>`
+          : '');
+
+    const tomorrowHTML = t.tomorrow && !t.done
+      ? `<div class="task-tomorrow-note">Pushed to tomorrow</div>`
+      : '';
+
+    return `
+      <li class="${cls}" data-id="${t.id}">
+        <button class="check ${t.done ? 'checked' : ''}" data-toggle="${t.id}" title="Mark done">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
+        <div class="task-body">
+          <div class="task-text">${escapeHtml(t.text)}</div>
+          ${blockerHTML}
+          ${tomorrowHTML}
+        </div>
+        <div class="task-actions">
+          <button class="task-action ${t.blocker ? 'active-block' : ''}" data-block="${t.id}" title="${t.blocker ? 'Remove blocker' : 'Add blocker'}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </button>
+          <button class="task-action ${t.tomorrow ? 'active-tmr' : ''}" data-tomorrow="${t.id}" title="${t.tomorrow ? 'Keep for today' : 'Push to tomorrow'}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+          <button class="task-action" data-delete="${t.id}" title="Delete">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        </div>
+      </li>`;
+  }
+
+  function escapeHtml(str) {
+    return String(str || '').replace(/[&<>"']/g, c => ({
+      '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+    })[c]);
+  }
+
+  function updateProgress() {
+    const total = tasks.length;
+    const done = tasks.filter(t => t.done).length;
+    const blocked = tasks.filter(t => t.blocker && !t.done).length;
+    const tomorrow = tasks.filter(t => t.tomorrow && !t.done).length;
+    const inProgress = tasks.filter(t => !t.done && !t.blocker && !t.tomorrow).length;
+
+    const parts = [`<span><strong>${total}</strong> total</span>`];
+    if (done) parts.push(`<span><strong>${done}</strong> done</span>`);
+    if (inProgress) parts.push(`<span><strong>${inProgress}</strong> in progress</span>`);
+    if (blocked) parts.push(`<span><strong>${blocked}</strong> blocked</span>`);
+    if (tomorrow) parts.push(`<span><strong>${tomorrow}</strong> tomorrow</span>`);
+
+    $('progress-strip').innerHTML = parts.join('');
+  }
+
+  function attachHandlers() {
+    document.querySelectorAll('[data-toggle]').forEach(el => {
+      el.onclick = () => {
+        const id = el.dataset.toggle;
+        const t = tasks.find(x => x.id === id);
+        if (!t) return;
+        t.done = !t.done;
+        if (t.done) t.tomorrow = false;
+        save();
+      };
+    });
+
+    document.querySelectorAll('[data-block]').forEach(el => {
+      el.onclick = (e) => {
+        e.stopPropagation();
+        const id = el.dataset.block;
+        const t = tasks.find(x => x.id === id);
+        if (!t) return;
+        if (t.blocker) {
+          t.blocker = null;
+          save();
+        } else {
+          t._editingBlocker = true;
+          render();
+          setTimeout(() => {
+            const inp = document.querySelector(`[data-blocker-input="${id}"]`);
+            if (inp) inp.focus();
+          }, 20);
+        }
+      };
+    });
+
+    document.querySelectorAll('[data-blocker-input]').forEach(inp => {
+      const id = inp.dataset.blockerInput;
+      const t = tasks.find(x => x.id === id);
+      inp.addEventListener('input', () => { if (t) t._draftBlocker = inp.value; });
+      inp.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); commitBlocker(id); }
+        if (e.key === 'Escape') {
+          if (t) { delete t._editingBlocker; delete t._draftBlocker; }
+          render();
+        }
+      });
+    });
+    document.querySelectorAll('[data-blocker-save]').forEach(btn => {
+      btn.onclick = () => commitBlocker(btn.dataset.blockerSave);
+    });
+
+    document.querySelectorAll('[data-tomorrow]').forEach(el => {
+      el.onclick = (e) => {
+        e.stopPropagation();
+        const id = el.dataset.tomorrow;
+        const t = tasks.find(x => x.id === id);
+        if (!t) return;
+        t.tomorrow = !t.tomorrow;
+        if (t.tomorrow) t.done = false;
+        save();
+      };
+    });
+
+    document.querySelectorAll('[data-delete]').forEach(el => {
+      el.onclick = (e) => {
+        e.stopPropagation();
+        const id = el.dataset.delete;
+        tasks = tasks.filter(t => t.id !== id);
+        save();
+      };
+    });
+  }
+
+  function commitBlocker(id) {
+    const t = tasks.find(x => x.id === id);
+    if (!t) return;
+    const val = (t._draftBlocker || '').trim();
+    if (val) t.blocker = val;
+    delete t._editingBlocker;
+    delete t._draftBlocker;
+    save();
+  }
+
+  function save() {
+    const clean = tasks.map(t => {
+      const { _editingBlocker, _draftBlocker, ...rest } = t;
+      return rest;
+    });
+    storageSet(KEY_TASKS, clean);
+    render();
+  }
+
+  function addTask() {
+    const text = taskInput.value.trim();
+    if (!text) return;
+    const project = projectInput.value.trim();
+    tasks.push({
+      id: 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      text,
+      project,
+      done: false,
+      blocker: null,
+      tomorrow: false,
+      createdAt: new Date().toISOString()
+    });
+    save();
+    taskInput.value = '';
+    taskInput.focus();
+  }
+
+  $('btn-add').onclick = addTask;
+  taskInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); addTask(); }
+  });
+  projectInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); addTask(); }
+  });
+
+  $('btn-clear').onclick = async () => {
+    if (!confirm('Delete all tasks? This cannot be undone.')) return;
+    tasks = [];
+    await storageSet(KEY_TASKS, tasks);
+    render();
+    showToast('Cleared');
+  };
+
+  function openModal(id) { $(id).classList.add('open'); }
+  function closeModal(id) { $(id).classList.remove('open'); }
+
+  document.querySelectorAll('[data-close]').forEach(btn => {
+    btn.onclick = () => closeModal(btn.getAttribute('data-close'));
+  });
+  document.querySelectorAll('.modal-backdrop').forEach(bd => {
+    bd.addEventListener('click', (e) => {
+      if (e.target === bd) bd.classList.remove('open');
+    });
+  });
+
+  $('btn-settings').onclick = () => {
+    $('settings-name').value = settings.name || '';
+    $('settings-model').value = settings.model || 'gpt-4o-mini';
+    $('settings-style').value = settings.style || '';
+    openModal('modal-settings');
+  };
+
+  $('btn-save-settings').onclick = async () => {
+    settings.name  = $('settings-name').value.trim();
+    settings.model = $('settings-model').value.trim() || 'gpt-4o-mini';
+    settings.style = $('settings-style').value.trim();
+    await storageSet(KEY_SETTINGS, settings);
+    updateKeyStatus();
+    closeModal('modal-settings');
+    showToast('Settings saved');
+  };
+
+  function updateKeyStatus() {
+    const el = $('key-status');
+    el.textContent = 'server API mode';
+    el.className = 'key-status ok';
+  }
+
+  $('btn-generate').onclick = () => generate();
+  $('btn-regenerate').onclick = () => generate();
+
+  async function generate() {
+    if (tasks.length === 0) {
+      showToast('Add some tasks first');
+      return;
+    }
+    openModal('modal-report');
+    $('report-output').innerHTML = '<span class="loader"></span>  Composing your report…';
+
+    try {
+      const report = await callOpenAI();
+      $('report-output').textContent = report;
+    } catch (err) {
+      console.error(err);
+      $('report-output').textContent = '⚠ Error:\n\n' + (err.message || err);
+    }
+  }
+
+  function resolveTasks() {
+    const completed = [];
+    const progress = [];
+    const blockers = [];
+    const tomorrow = [];
+
+    tasks.forEach(t => {
+      const clean = { text: t.text, project: t.project || null, blocker: t.blocker || null };
+      if (t.done) {
+        completed.push(clean);
+      } else if (t.blocker) {
+        blockers.push(clean);
+      } else if (t.tomorrow) {
+        tomorrow.push(clean);
+      } else {
+        progress.push(clean);
+      }
+    });
+
+    return { completed, progress, blockers, tomorrow };
+  }
+
+  async function callOpenAI() {
+    const d = new Date();
+    const dateStr = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    const name = settings.name || 'Team member';
+    const resolved = resolveTasks();
+
+    const resp = await fetch('/api/generate-eod/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name,
+        date: dateStr,
+        tasks: resolved,
+        style: settings.style || '',
+        model: settings.model || 'gpt-4o-mini'
+      })
+    });
+
+    const data = await resp.json();
+    if (!resp.ok) {
+      throw new Error(data.error || `HTTP ${resp.status}`);
+    }
+    if (!data.report) throw new Error('Empty response from API');
+    return data.report;
+  }
+
+  $('btn-copy').onclick = async () => {
+    const text = $('report-output').textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('Copied to clipboard');
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+      showToast('Copied to clipboard');
+    }
+  };
+
+  let toastTimer;
+  function showToast(msg) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      generate();
+    }
+  });
+</script>
+</body>
+</html>
