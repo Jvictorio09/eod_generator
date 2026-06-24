@@ -1,1193 +1,2019 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>EOD Report Generator</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+{% extends "base.html" %}
+{% block title %}CloseOut{% endblock %}
+{% block extra_head %}
+<script>
+  (function () {
+    var lvl = parseInt(localStorage.getItem('closeout:emp-text') || '3', 10);
+    if (isNaN(lvl) || lvl < 0) lvl = 0;
+    if (lvl > 4) lvl = 4;
+    document.documentElement.setAttribute('data-emp-text', String(lvl));
+  })();
+</script>
 <style>
-  :root {
-    --bg: #f6f4ef;
-    --bg-elevated: #fffdf8;
-    --surface: #ffffff;
-    --ink: #1a1a1a;
-    --ink-soft: #4a4a4a;
-    --ink-mute: #8a8a8a;
-    --ink-faint: #b8b8b8;
-    --line: #e8e3d8;
-    --line-soft: #f0ece2;
-    --accent: #d4583a;
-    --accent-soft: #f5e4dd;
-    --ok: #3f7a3f;
-    --ok-soft: #e4ede0;
-    --warn: #b8860b;
-    --warn-soft: #f5edd4;
-    --info: #4a6fa5;
-    --plan: #6b4e8c;
-    --plan-soft: #ece4f2;
-    --shadow-sm: 0 1px 2px rgba(26,26,26,0.04), 0 1px 1px rgba(26,26,26,0.03);
-    --shadow: 0 4px 12px rgba(26,26,26,0.06), 0 1px 3px rgba(26,26,26,0.04);
-    --shadow-lg: 0 16px 40px rgba(26,26,26,0.08), 0 4px 12px rgba(26,26,26,0.05);
-    --radius: 10px;
-    --radius-lg: 16px;
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  html, body {
-    background: var(--bg);
-    color: var(--ink);
-    font-family: 'Geist', -apple-system, sans-serif;
-    font-size: 15px;
+  /* ── Employee workspace: scale + layout ── */
+  .emp-page {
+    --s: 1.12;
     line-height: 1.5;
-    min-height: 100vh;
     -webkit-font-smoothing: antialiased;
   }
+  html[data-emp-text="0"] .emp-page { --s: 0.92; }
+  html[data-emp-text="1"] .emp-page { --s: 1.02; }
+  html[data-emp-text="2"] .emp-page { --s: 1.12; }
+  html[data-emp-text="3"] .emp-page { --s: 1.24; }
+  html[data-emp-text="4"] .emp-page { --s: 1.38; }
 
-  body {
-    background-image:
-      radial-gradient(circle at 20% 0%, rgba(212,88,58,0.03), transparent 40%),
-      radial-gradient(circle at 80% 100%, rgba(107,78,140,0.03), transparent 40%);
+  .page.emp-page {
+    max-width: 1440px;
+    padding: 14px 20px 72px;
   }
 
-  .app {
-    max-width: 820px;
-    margin: 0 auto;
-    padding: 40px 28px 80px;
-  }
-
-  .header {
+  .emp-hero {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    gap: 24px;
-    margin-bottom: 28px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid var(--line);
-  }
-
-  .header-title h1 {
-    font-family: 'Fraunces', serif;
-    font-size: 40px;
-    font-weight: 500;
-    letter-spacing: -0.02em;
-    line-height: 1.05;
-  }
-
-  .header-title h1 .accent {
-    font-style: italic;
-    color: var(--accent);
-  }
-
-  .header-title .date {
-    margin-top: 6px;
-    font-size: 13px;
-    color: var(--ink-mute);
-    font-family: 'Geist Mono', monospace;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-  }
-
-  .header-actions {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
-
-  .icon-btn {
-    width: 38px;
-    height: 38px;
-    border-radius: 10px;
-    border: 1px solid var(--line);
-    background: var(--bg-elevated);
-    color: var(--ink-soft);
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.15s ease;
-  }
-  .icon-btn:hover {
-    border-color: var(--ink-mute);
-    color: var(--ink);
-    transform: translateY(-1px);
-  }
-  .icon-btn svg { width: 16px; height: 16px; }
-
-  .btn-primary {
-    background: var(--ink);
-    color: var(--bg-elevated);
-    border: none;
-    padding: 11px 20px;
-    border-radius: 10px;
-    font-family: inherit;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    transition: all 0.15s ease;
-    box-shadow: var(--shadow-sm);
-  }
-  .btn-primary:hover {
-    background: var(--accent);
-    transform: translateY(-1px);
-    box-shadow: var(--shadow);
-  }
-  .btn-primary:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-  }
-  .btn-primary svg { width: 15px; height: 15px; }
-
-  .btn-secondary {
-    background: var(--bg-elevated);
-    color: var(--ink);
-    border: 1px solid var(--line);
-    padding: 9px 16px;
-    border-radius: 8px;
-    font-family: inherit;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-  .btn-secondary:hover { border-color: var(--ink-mute); }
-
-  .add-section {
-    background: var(--bg-elevated);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-lg);
-    padding: 6px 6px 6px 8px;
-    margin-bottom: 10px;
-    box-shadow: var(--shadow-sm);
-    transition: border-color 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .add-section:focus-within { border-color: var(--ink-mute); }
-
-  .add-section input[type="text"] {
-    flex: 1;
-    border: none;
-    background: transparent;
-    padding: 12px 10px;
-    font-family: inherit;
-    font-size: 15px;
-    color: var(--ink);
-    outline: none;
-    min-width: 0;
-  }
-  .add-section input::placeholder { color: var(--ink-mute); }
-
-  .project-input {
-    border: 1px solid var(--line);
-    background: var(--bg);
-    border-radius: 8px;
-    padding: 8px 12px;
-    font-family: inherit;
-    font-size: 13px;
-    color: var(--ink-soft);
-    outline: none;
-    width: 150px;
-  }
-
-  .add-btn {
-    background: var(--ink);
-    color: var(--bg-elevated);
-    border: none;
-    border-radius: 8px;
-    width: 38px;
-    height: 38px;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    transition: background 0.15s ease;
-  }
-  .add-btn:hover { background: var(--accent); }
-  .add-btn svg { width: 16px; height: 16px; }
-
-  .hint-row {
-    font-size: 12px;
-    color: var(--ink-mute);
-    padding: 0 4px 18px;
-    font-family: 'Geist Mono', monospace;
-    letter-spacing: 0.01em;
-  }
-  .hint-row kbd {
-    background: var(--bg-elevated);
-    border: 1px solid var(--line);
-    border-radius: 4px;
-    padding: 1px 5px;
-    font-family: inherit;
-    font-size: 11px;
-  }
-
-  .section-label {
-    font-family: 'Geist Mono', monospace;
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--ink-mute);
-    margin: 20px 4px 8px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .section-label::before,
-  .section-label::after {
-    content: '';
-    height: 1px;
-    flex: 1;
-    background: var(--line);
-  }
-  .section-label .label-text { color: var(--ink-soft); }
-
-  .task-list {
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .task {
-    background: var(--bg-elevated);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 12px 14px;
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    transition: all 0.15s ease;
-    position: relative;
-  }
-  .task:hover {
-    border-color: var(--ink-mute);
-    box-shadow: var(--shadow-sm);
-  }
-
-  .task.is-done {
-    background: var(--ok-soft);
-    border-color: var(--ok-soft);
-  }
-  .task.is-done .task-text {
-    text-decoration: line-through;
-    color: var(--ink-mute);
-  }
-
-  .task.is-blocked {
-    background: var(--warn-soft);
-    border-color: var(--warn-soft);
-  }
-  .task.is-tomorrow {
-    background: var(--plan-soft);
-    border-color: var(--plan-soft);
-  }
-
-  .check {
-    width: 20px;
-    height: 20px;
-    border: 1.5px solid var(--ink-faint);
-    border-radius: 6px;
-    background: var(--surface);
-    cursor: pointer;
-    flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.15s ease;
-    margin-top: 1px;
-    padding: 0;
-  }
-  .check:hover { border-color: var(--ok); }
-  .check.checked {
-    background: var(--ok);
-    border-color: var(--ok);
-  }
-  .check.checked svg { display: block; }
-  .check svg {
-    width: 12px;
-    height: 12px;
-    color: white;
-    display: none;
-  }
-
-  .task-body {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .task-text {
-    word-break: break-word;
-    font-size: 14.5px;
-    line-height: 1.5;
-  }
-
-  .task-blocker-note {
-    margin-top: 6px;
-    font-size: 13px;
-    color: var(--warn);
-    font-style: italic;
-    padding: 6px 10px;
-    background: rgba(255,255,255,0.5);
-    border-radius: 6px;
-    border-left: 2px solid var(--warn);
-  }
-  .task-blocker-note::before { content: '⚠  '; font-style: normal; }
-
-  .task-tomorrow-note {
-    margin-top: 4px;
-    font-size: 11px;
-    color: var(--plan);
-    font-family: 'Geist Mono', monospace;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
-  .task-tomorrow-note::before { content: '→  '; }
-
-  .task-actions {
-    display: flex;
-    gap: 2px;
-    align-items: center;
-    opacity: 0;
-    transition: opacity 0.15s ease;
-  }
-  .task:hover .task-actions,
-  .task.is-blocked .task-actions,
-  .task.is-tomorrow .task-actions { opacity: 1; }
-
-  .task-action {
-    width: 26px;
-    height: 26px;
-    border: none;
-    background: transparent;
-    border-radius: 6px;
-    cursor: pointer;
-    color: var(--ink-mute);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.15s ease;
-  }
-  .task-action:hover {
-    background: var(--bg);
-    color: var(--ink);
-  }
-  .task-action.active-block { color: var(--warn); }
-  .task-action.active-tmr { color: var(--plan); }
-  .task-action svg { width: 14px; height: 14px; }
-
-  .empty-state {
-    text-align: center;
-    padding: 48px 16px;
-    color: var(--ink-mute);
-    font-family: 'Fraunces', serif;
-    font-style: italic;
-    font-size: 15px;
-    border: 1px dashed var(--line);
-    border-radius: var(--radius-lg);
-  }
-  .empty-state .emoji {
-    display: block;
-    font-size: 28px;
-    margin-bottom: 8px;
-    font-style: normal;
-  }
-
-  .blocker-editor {
-    display: flex;
-    gap: 6px;
-    margin-top: 8px;
-  }
-  .blocker-editor input {
-    flex: 1;
-    padding: 7px 10px;
-    border: 1px solid var(--warn);
-    border-radius: 6px;
-    font-family: inherit;
-    font-size: 13px;
-    background: white;
-    outline: none;
-  }
-  .blocker-editor input:focus {
-    border-color: var(--warn);
-    box-shadow: 0 0 0 3px var(--warn-soft);
-  }
-  .blocker-editor button {
-    border: none;
-    background: var(--warn);
-    color: white;
-    padding: 0 12px;
-    font-size: 12px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-family: inherit;
-  }
-
-  .progress-strip {
-    display: flex;
-    gap: 16px;
-    font-size: 12px;
-    font-family: 'Geist Mono', monospace;
-    color: var(--ink-mute);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-  .progress-strip span strong {
-    color: var(--ink);
-    font-weight: 600;
-  }
-
-  /* Modals */
-  .modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(26,26,26,0.35);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-    padding: 20px;
-  }
-  .modal-backdrop.open { display: flex; animation: fadeIn 0.2s ease; }
-  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-  .modal {
-    background: var(--bg-elevated);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
-    max-width: 720px;
-    width: 100%;
-    max-height: 85vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    animation: modalUp 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
-  }
-  @keyframes modalUp {
-    from { transform: translateY(16px); opacity: 0; }
-    to   { transform: translateY(0); opacity: 1; }
-  }
-
-  .modal-header {
-    padding: 20px 24px;
-    border-bottom: 1px solid var(--line);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .modal-title {
-    font-family: 'Fraunces', serif;
-    font-size: 22px;
-    font-weight: 500;
-    letter-spacing: -0.01em;
-  }
-  .modal-title em { color: var(--accent); }
-
-  .modal-body {
-    padding: 20px 24px;
-    overflow: auto;
-    flex: 1;
-  }
-
-  .modal-footer {
-    padding: 14px 24px;
-    border-top: 1px solid var(--line);
-    display: flex;
-    gap: 10px;
-    justify-content: flex-end;
-    background: var(--bg);
-  }
-
-  .report-output {
-    font-family: 'Geist Mono', monospace;
-    font-size: 13px;
-    line-height: 1.65;
-    white-space: pre-wrap;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 18px 20px;
-    color: var(--ink);
-    max-height: 60vh;
-    overflow: auto;
-  }
-
-  .settings-field { margin-bottom: 16px; }
-  .settings-field label {
-    display: block;
-    font-size: 12px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--ink-soft);
-    margin-bottom: 6px;
-  }
-  .settings-field input,
-  .settings-field textarea {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    background: var(--surface);
-    font-family: 'Geist Mono', monospace;
-    font-size: 13px;
-    color: var(--ink);
-    outline: none;
-    transition: border-color 0.15s ease;
-  }
-  .settings-field input:focus,
-  .settings-field textarea:focus { border-color: var(--ink); }
-  .settings-field textarea {
-    min-height: 80px;
-    resize: vertical;
-    font-family: inherit;
-  }
-
-  .settings-hint {
-    font-size: 12px;
-    color: var(--ink-mute);
-    margin-top: 6px;
-    line-height: 1.5;
-  }
-  .settings-hint a { color: var(--accent); }
-  .settings-hint code {
-    background: var(--bg);
-    padding: 1px 5px;
-    border-radius: 4px;
-    font-size: 12px;
-  }
-
-  .loader {
-    display: inline-block;
-    width: 14px;
-    height: 14px;
-    border: 2px solid currentColor;
-    border-right-color: transparent;
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .toast {
-    position: fixed;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%) translateY(20px);
-    background: var(--ink);
-    color: var(--bg-elevated);
-    padding: 10px 18px;
-    border-radius: 10px;
-    font-size: 13px;
-    box-shadow: var(--shadow-lg);
-    opacity: 0;
-    pointer-events: none;
-    transition: all 0.25s ease;
-    z-index: 200;
-  }
-  .toast.show {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-
-  .key-status {
-    font-family: 'Geist Mono', monospace;
-    font-size: 11px;
-    color: var(--ink-mute);
-    padding: 4px 10px;
-    border: 1px solid var(--line);
-    border-radius: 20px;
-    background: var(--bg-elevated);
-  }
-  .key-status.ok {
-    color: var(--ok);
-    border-color: var(--ok-soft);
-    background: var(--ok-soft);
-  }
-  .key-status.missing {
-    color: var(--accent);
-    border-color: var(--accent-soft);
-    background: var(--accent-soft);
-  }
-
-  .meta-footer {
-    margin-top: 40px;
-    padding-top: 20px;
-    border-top: 1px dashed var(--line);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 12px;
-    color: var(--ink-mute);
-    font-family: 'Geist Mono', monospace;
-  }
-  .meta-footer .danger {
-    color: var(--accent);
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-family: inherit;
-    font-size: inherit;
-    text-decoration: underline;
-  }
-
-  .tip-card {
-    background: var(--bg-elevated);
-    border: 1px solid var(--line);
-    border-left: 3px solid var(--info);
-    border-radius: 10px;
-    padding: 14px 16px;
-    margin-bottom: 18px;
-    font-size: 13px;
-    color: var(--ink-soft);
-    line-height: 1.55;
-  }
-  .tip-card strong { color: var(--ink); }
-
-  .legend {
-    display: flex;
     gap: 16px;
     flex-wrap: wrap;
-    margin-top: 8px;
-    font-size: 12px;
-    color: var(--ink-mute);
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
   }
-  .legend-item {
-    display: inline-flex;
+  .emp-hero h1 {
+    font-size: calc(28px * var(--s));
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    line-height: 1.12;
+    margin: 0 0 6px;
+  }
+  .emp-hero h1 span { color: var(--text-3); font-weight: 500; }
+  .emp-hero-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: calc(14px * var(--s));
+    color: var(--text-2);
+  }
+  .emp-hero-meta .pill {
+    font-family: var(--mono);
+    font-size: calc(12px * var(--s));
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--gold-dim);
+    border: 1px solid rgba(196, 169, 98, 0.22);
+    color: var(--text-2);
+  }
+  .emp-generate-hint {
+    font-size: calc(13px * var(--s));
+    color: var(--text-2);
+    text-align: right;
+    line-height: 1.4;
+  }
+  .emp-generate-hint kbd {
+    font-family: var(--mono);
+    font-size: calc(10px * var(--s));
+    padding: 2px 6px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .emp-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);
+    gap: 14px;
+    align-items: start;
+  }
+
+  .emp-sidebar {
+    position: sticky;
+    top: 64px;
+    max-height: calc(100dvh - 72px);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+  }
+  .emp-sidebar .panel {
+    margin-bottom: 0;
+    flex-shrink: 0;
+    flex-grow: 0;
+    height: auto;
+    min-height: 0;
+  }
+  /* Always stack sidebar cards — never squeeze into 2-col grid from base.css */
+  .emp-page .emp-sidebar.panel-side {
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: unset !important;
+  }
+  @media (max-width: 960px) {
+    .emp-grid { grid-template-columns: 1fr; gap: 24px; }
+    .emp-sidebar {
+      position: relative !important;
+      top: auto !important;
+      max-height: none !important;
+      overflow: visible;
+      gap: 24px;
+      padding-bottom: 16px;
+    }
+  }
+
+  /* Luxe panels */
+  .emp-page .panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+    transition: border-color var(--ease), box-shadow var(--ease);
+  }
+  [data-theme="light"] .emp-page .panel {
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+  }
+  [data-theme="dark"] .emp-page .panel {
+    background: linear-gradient(168deg, var(--surface) 0%, rgba(18, 18, 20, 0.97) 100%);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22);
+  }
+  .emp-page .panel-head {
+    padding: calc(14px * var(--s)) calc(18px * var(--s));
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, var(--bg-elevated) 0%, transparent 100%);
+  }
+  .emp-page .panel-side .panel-head {
+    padding: 14px 18px;
+  }
+  .emp-page .panel-title {
+    font-size: calc(15px * var(--s));
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text);
+  }
+  .emp-page .panel-body { padding: calc(14px * var(--s)) calc(16px * var(--s)); }
+
+  .emp-log-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .emp-log-head .panel-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .emp-log-head .panel-title::before {
+    content: '';
+    width: 3px;
+    height: 14px;
+    border-radius: 2px;
+    background: linear-gradient(180deg, var(--gold), var(--violet));
+  }
+  .emp-project-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 140px;
+    max-width: 240px;
+  }
+  .emp-project-inline label {
+    font-size: calc(13px * var(--s));
+    color: var(--text-2);
+    white-space: nowrap;
+  }
+  .emp-project-inline .input-project {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 11px;
+    font-size: calc(14px * var(--s));
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  .emp-log-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: calc(10px * var(--s)) calc(16px * var(--s));
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-elevated);
+  }
+  .emp-log-toolbar .input-hint {
+    margin: 0;
+    font-size: calc(13px * var(--s));
+    color: var(--text-2);
+  }
+  .emp-log-toolbar .braindump-panel { flex-shrink: 0; }
+  .emp-log-toolbar .braindump-panel summary {
+    padding: 0;
+    border: none;
+    font-size: calc(13px * var(--s));
+    font-weight: 500;
+    color: var(--text);
+  }
+  .emp-log-toolbar .braindump-panel[open] {
+    width: 100%;
+    flex-basis: 100%;
+  }
+  .emp-log-toolbar .braindump-panel[open] summary {
+    margin-bottom: calc(8px * var(--s));
+  }
+  .emp-log-toolbar .braindump-area {
+    margin: 0 0 calc(10px * var(--s));
+    width: 100%;
+    font-size: calc(14px * var(--s));
+    line-height: 1.5;
+  }
+  .emp-log-toolbar .braindump-actions {
+    padding: 0 0 calc(10px * var(--s));
+  }
+
+  .log-template {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: calc(10px * var(--s));
+    padding: calc(12px * var(--s)) calc(14px * var(--s));
+  }
+  @media (max-width: 720px) {
+    .log-template { grid-template-columns: 1fr; }
+  }
+
+  .log-lane {
+    border: 1px solid var(--border);
+    border-radius: calc(14px * var(--s));
+    background: var(--bg-elevated);
+    padding: calc(12px * var(--s));
+    display: flex;
+    flex-direction: column;
+    min-height: calc(130px * var(--s));
+    transition: border-color var(--ease), box-shadow var(--ease);
+  }
+  .log-lane:hover {
+    border-color: var(--border-hover);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  }
+  .log-lane.lane-done { border-top: 2px solid var(--green); }
+  .log-lane.lane-progress { border-top: 2px solid var(--blue); }
+  .log-lane.lane-blocked { border-top: 2px solid var(--amber); }
+  .log-lane.lane-tmr { border-top: 2px solid var(--violet); }
+
+  .lane-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 2px;
+  }
+  .lane-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: calc(15px * var(--s));
+    font-weight: 600;
+    color: var(--text);
+  }
+  .lane-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .lane-done .lane-dot { background: var(--green); }
+  .lane-progress .lane-dot { background: var(--blue); }
+  .lane-blocked .lane-dot { background: var(--amber); }
+  .lane-tmr .lane-dot { background: var(--violet); }
+  .lane-count {
+    font-family: var(--mono);
+    font-size: calc(11px * var(--s));
+    font-weight: 500;
+    color: var(--text-2);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 2px 7px;
+  }
+  .lane-hint {
+    font-size: calc(12px * var(--s));
+    color: var(--text-2);
+    margin: 0 0 8px;
+  }
+  .lane-add {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .lane-add input {
+    flex: 1;
+    min-width: 0;
+    padding: calc(10px * var(--s)) calc(11px * var(--s));
+    font-size: calc(15px * var(--s));
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--surface);
+    color: var(--text);
+    transition: border-color var(--ease);
+  }
+  .lane-add input:focus {
+    outline: none;
+    border-color: var(--border-hover);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+  }
+  .lane-add button {
+    width: calc(34px * var(--s));
+    height: calc(34px * var(--s));
+    flex-shrink: 0;
+    border: none;
+    border-radius: 9px;
+    background: linear-gradient(145deg, var(--text), var(--text-2));
+    color: var(--bg);
+    font-size: calc(17px * var(--s));
+    line-height: 1;
+    cursor: pointer;
+    transition: opacity var(--ease);
+  }
+  .lane-add button:hover { opacity: 0.88; }
+  .lane-tasks { flex: 1; }
+  .lane-empty {
+    font-size: calc(13px * var(--s));
+    color: var(--text-2);
+    margin: 2px 0 0;
+    font-style: italic;
+  }
+
+  .emp-page .panel-lanes-wrap .foot {
+    margin: 0 calc(14px * var(--s)) calc(12px * var(--s));
+    padding-top: 0;
+    font-size: calc(14px * var(--s));
+  }
+
+  .log-action-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin: calc(8px * var(--s)) calc(14px * var(--s)) calc(14px * var(--s));
+    padding: calc(14px * var(--s)) calc(16px * var(--s));
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: linear-gradient(180deg, var(--bg-elevated) 0%, var(--surface) 100%);
+    position: sticky;
+    bottom: 12px;
+    z-index: 5;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  }
+  [data-theme="light"] .log-action-bar {
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08);
+  }
+  .log-action-copy { flex: 1; min-width: 200px; }
+  .log-action-title {
+    margin: 0 0 4px;
+    font-size: calc(15px * var(--s));
+    font-weight: 600;
+    color: var(--text);
+  }
+  .log-action-steps {
+    margin: 0 0 6px;
+    font-size: calc(13px * var(--s));
+    color: var(--text-2);
+    display: flex;
     align-items: center;
     gap: 6px;
+    flex-wrap: wrap;
   }
-  .legend-swatch {
-    width: 10px;
-    height: 10px;
-    border-radius: 3px;
+  .log-action-steps .step {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    font-size: calc(12px * var(--s));
   }
+  .log-action-steps .step.is-ready {
+    border-color: rgba(34, 197, 94, 0.35);
+    background: var(--green-dim);
+    color: var(--green);
+  }
+  .log-action-note {
+    margin: 0;
+    font-size: calc(12px * var(--s));
+    color: var(--text-3);
+    line-height: 1.45;
+  }
+  .btn-generate-lg {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: calc(44px * var(--s));
+    padding: 0 calc(20px * var(--s));
+    font-size: calc(15px * var(--s));
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .btn-generate-lg:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  @media (max-width: 600px) {
+    .page.emp-page { padding-bottom: 32px; }
+    .log-action-bar {
+      position: sticky;
+      bottom: 8px;
+      left: auto;
+      right: auto;
+      margin: 10px;
+      z-index: 5;
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .btn-generate-lg { width: 100%; justify-content: center; }
+  }
+
+  /* Sidebar luxe tweaks */
+  .emp-page .panel-side .panel {
+    overflow: visible;
+    min-width: 0;
+  }
+  .emp-page .main-col .panel {
+    overflow: hidden;
+    min-width: 0;
+  }
+  .emp-page .panel-side .panel-body {
+    padding: 18px;
+  }
+  .emp-page .panel-side .panel-body.flush {
+    padding: 0;
+  }
+  .emp-page .panel-side .insight-stat {
+    padding: 0 0 18px;
+    margin: 0 0 18px;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    background: transparent;
+  }
+  .emp-page .panel-side .insight-stat strong {
+    font-size: calc(28px * var(--s));
+    display: block;
+    line-height: 1.1;
+    margin-bottom: 6px;
+  }
+  .emp-page .panel-side .insight-stat > span {
+    font-size: calc(13px * var(--s));
+    color: var(--text-2);
+    display: block;
+    margin-bottom: 10px;
+    line-height: 1.4;
+  }
+  .emp-page .panel-side .insight-msg {
+    font-size: calc(14px * var(--s));
+    color: var(--text-2);
+    line-height: 1.55;
+    margin: 0;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+  .emp-page .panel-side .btn-week-review {
+    margin-top: 4px;
+    font-size: calc(14px * var(--s));
+  }
+  .emp-page .panel-side .review-output {
+    margin-top: 14px;
+    padding: 14px;
+    font-size: calc(13px * var(--s));
+    line-height: 1.6;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    max-height: none;
+  }
+  .emp-page .bento { padding: 0; gap: calc(10px * var(--s)); margin-bottom: 14px; }
+  .emp-page .bento-cell { padding: calc(12px * var(--s)); min-height: 0; }
+  .emp-page .bento-val { font-size: calc(26px * var(--s)); line-height: 1.1; }
+  .emp-page .bento-label { font-size: calc(12px * var(--s)); color: var(--text-2); line-height: 1.35; }
+  .emp-page .progress-block {
+    padding: 0 0 8px;
+    margin-bottom: 0;
+  }
+  .emp-page .progress-top {
+    font-size: calc(12px * var(--s));
+    line-height: 1.4;
+    margin-bottom: 10px;
+  }
+  .emp-page .progress-top strong { font-size: calc(12px * var(--s)); color: var(--text); }
+  .emp-page .panel-side .overview-body {
+    padding: 16px 18px 18px;
+  }
+
+  .emp-page .panel-side .wins-list {
+    max-height: none;
+    overflow: visible;
+  }
+  @media (min-width: 961px) {
+    .emp-page .panel-side .wins-list {
+      max-height: 260px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+  .emp-page .panel-side .wins-list .win-item {
+    padding: 14px 18px;
+    line-height: 1.5;
+    font-size: calc(14px * var(--s));
+  }
+  .emp-page .panel-side .wins-list .win-date {
+    font-size: calc(11px * var(--s));
+    margin-bottom: 6px;
+    display: block;
+  }
+  .emp-page .panel-side .wins-list .win-title {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    line-height: 1.45;
+  }
+  .emp-page .panel-side .wins-list .side-empty,
+  .emp-page .panel-side .side-empty {
+    padding: 18px;
+    font-size: calc(13px * var(--s));
+    line-height: 1.6;
+    color: var(--text-3);
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    overflow: visible;
+  }
+  .emp-page .panel-side .search-results .search-empty {
+    padding: 10px 0 4px;
+    color: var(--text-3);
+    font-size: calc(13px * var(--s));
+    line-height: 1.5;
+  }
+  .emp-page .panel-side .search-box {
+    display: flex;
+    gap: 8px;
+    border: none;
+    border-radius: 0;
+    overflow: visible;
+    background: transparent;
+  }
+  .emp-page .panel-side .search-box input {
+    flex: 1;
+    min-width: 0;
+    min-height: 44px;
+    padding: 11px 14px;
+    font-size: calc(14px * var(--s));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+    box-sizing: border-box;
+  }
+  .emp-page .panel-side .search-box .btn {
+    flex-shrink: 0;
+    min-height: 44px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0 16px;
+    font-size: calc(13px * var(--s));
+    background: var(--surface);
+    box-sizing: border-box;
+  }
+  .emp-page .panel-side .search-panel .panel-body {
+    padding: 16px 18px 20px;
+  }
+  .emp-page .panel-side .search-results-wrap[hidden] { display: none !important; }
+  .emp-page .panel-side .search-results-wrap .search-results {
+    max-height: 220px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .emp-page .panel-side .search-results {
+    font-size: calc(13px * var(--s));
+    max-height: none;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .emp-page .panel-side .search-hit strong {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  .emp-shortcuts {
+    border-top: 1px solid var(--border);
+    margin-top: 8px;
+  }
+  .emp-shortcuts summary {
+    padding: 14px 18px;
+    font-size: calc(13px * var(--s));
+    font-weight: 600;
+    color: var(--text-2);
+    cursor: pointer;
+    list-style: none;
+  }
+  .emp-shortcuts summary::-webkit-details-marker { display: none; }
+  .emp-shortcuts .shortcut-list { padding: 0 calc(10px * var(--s)) calc(10px * var(--s)); }
+  .emp-shortcuts .shortcut-row { font-size: calc(13px * var(--s)); padding: calc(7px * var(--s)) 8px; }
+
+  .emp-page .task {
+    font-size: calc(14px * var(--s));
+    padding: calc(11px * var(--s)) calc(12px * var(--s));
+  }
+  .emp-page .task-text { font-size: calc(14px * var(--s)); line-height: 1.5; }
+  .emp-page .task-chip { font-size: calc(11px * var(--s)); }
+  .emp-page .task-chip.boss { background: var(--gold-dim); color: var(--gold); }
+  .emp-notify-banner {
+    max-width: 1440px; margin: 0 auto 12px; padding: 0 20px;
+  }
+  .emp-notify-banner .notify-card {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+    padding: 12px 14px; border-radius: var(--radius); border: 1px solid var(--gold-dim);
+    background: var(--gold-dim); color: var(--text);
+  }
+  .emp-notify-banner .notify-card p { margin: 0; font-size: calc(13px * var(--s)); line-height: 1.45; }
+  .emp-notify-banner .notify-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .notify-wrap { position: relative; }
+  .notify-bell { position: relative; }
+  .notify-badge {
+    position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px; padding: 0 4px;
+    border-radius: 999px; background: var(--red); color: #fff; font-size: 10px; font-weight: 700;
+    line-height: 16px; text-align: center; pointer-events: none;
+  }
+  .notify-dropdown {
+    position: absolute; top: calc(100% + 8px); right: 0; width: min(320px, calc(100vw - 24px));
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    box-shadow: var(--modal-shadow); z-index: 200; overflow: hidden;
+  }
+  .notify-dropdown[hidden] { display: none !important; }
+  .notify-dropdown-head {
+    padding: 12px 14px; font-size: calc(12px * var(--s)); font-weight: 600;
+    border-bottom: 1px solid var(--border); color: var(--text-2);
+  }
+  .notify-dropdown-list { max-height: 280px; overflow-y: auto; }
+  .notify-item {
+    display: block; width: 100%; text-align: left; padding: 12px 14px;
+    border: none; border-bottom: 1px solid var(--border); background: transparent;
+    color: var(--text); cursor: pointer; font-family: inherit;
+  }
+  .notify-item:hover { background: var(--surface-hover); }
+  .notify-item p { margin: 0; font-size: calc(13px * var(--s)); line-height: 1.45; }
+  .notify-item time { display: block; margin-top: 4px; font-size: 11px; color: var(--text-3); }
+  .notify-empty { padding: 20px 14px; font-size: calc(13px * var(--s)); color: var(--text-3); text-align: center; }
+  .notify-mark-all {
+    display: block; width: 100%; padding: 10px; border: none; border-top: 1px solid var(--border);
+    background: var(--bg-elevated); color: var(--text-2); font-size: 12px; cursor: pointer;
+    font-family: inherit;
+  }
+  .notify-mark-all:hover { color: var(--text); background: var(--surface-hover); }
+  .eod-history-list {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: visible;
+  }
+  .eod-history-entries {
+    display: flex;
+    flex-direction: column;
+  }
+  .panel-head-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .panel-head-link {
+    font-size: calc(12px * var(--s));
+    font-weight: 500;
+    color: var(--text-2);
+    text-decoration: none;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .panel-head-link:hover { color: var(--text); }
+  .history-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+    padding: 16px 18px;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--text);
+    box-sizing: border-box;
+  }
+  .history-row:hover { background: var(--surface-hover); }
+  .eod-history-entries .history-row:last-child {
+    border-bottom: none;
+  }
+  .history-row-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+  }
+  .history-date {
+    font-size: calc(13px * var(--s));
+    font-weight: 600;
+    line-height: 1.4;
+    min-width: 0;
+    flex: 1;
+    word-break: break-word;
+  }
+  .history-status {
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    line-height: 1.2;
+  }
+  .history-status.posted { background: var(--green-dim); color: var(--green); }
+  .history-status.draft { background: var(--amber-dim); color: var(--amber); }
+  .history-excerpt {
+    font-size: calc(13px * var(--s));
+    color: var(--text-2);
+    line-height: 1.5;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    margin: 0;
+    display: block;
+  }
+  .history-view-all {
+    display: block;
+    width: 100%;
+    padding: 14px 18px;
+    border: none;
+    border-top: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text-2);
+    font-size: calc(13px * var(--s));
+    font-weight: 500;
+    font-family: inherit;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    box-sizing: border-box;
+  }
+  .history-view-all:hover { color: var(--text); background: var(--surface-hover); }
+  .pill-account { font-family: var(--mono); color: var(--text-2); }
+  .pill-role { color: var(--violet); background: var(--violet-dim); }
+  .account-banner {
+    margin-bottom: 12px; padding: 10px 14px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--bg-elevated);
+    font-size: calc(12px * var(--s)); color: var(--text-2);
+  }
+  .account-banner strong { color: var(--text); }
 </style>
-</head>
-<body>
-
-<div class="app">
-
-  <header class="header">
-    <div class="header-title">
-      <h1>End of <span class="accent">Day</span>.</h1>
-      <div class="date" id="today-date"></div>
+{% endblock %}
+{% block body %}
+<nav class="nav nav-emp">
+  <div class="nav-inner">
+    <a class="logo" href="/">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+      </div>
+      CloseOut
+    </a>
+    <div class="nav-gap"></div>
+    <div class="badge" id="key-status"><span class="badge-dot"></span> Online</div>
+    <div class="text-scale-control" role="group" aria-label="Text size">
+      <button type="button" id="text-smaller" aria-label="Decrease text size" title="Smaller text">A−</button>
+      <span class="text-scale-label" id="text-scale-label">100%</span>
+      <button type="button" id="text-larger" aria-label="Increase text size" title="Larger text">A+</button>
     </div>
-    <div class="header-actions">
-      <span class="key-status" id="key-status">checking…</span>
-      <button class="icon-btn" id="btn-settings" title="Settings">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    <button class="btn btn-icon theme-toggle" id="btn-theme" type="button" aria-label="Toggle theme" title="Toggle light / dark">
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+    <div class="notify-wrap" id="notify-wrap">
+      <button class="btn btn-icon notify-bell" id="btn-notify" type="button" aria-label="Notifications" aria-expanded="false" aria-haspopup="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="notify-badge" id="notify-badge" style="display:none" aria-hidden="true">0</span>
       </button>
-      <button class="btn-primary" id="btn-generate">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.39 7.36H22l-6.19 4.5 2.36 7.27L12 16.62l-6.17 4.51 2.36-7.27L2 9.36h7.61z"/></svg>
-        Generate EOD
-      </button>
+      <div class="notify-dropdown" id="notify-dropdown" hidden>
+        <div class="notify-dropdown-head">Notifications</div>
+        <div class="notify-dropdown-list" id="notify-list"></div>
+        <button type="button" class="notify-mark-all" id="notify-mark-all" style="display:none">Mark all read</button>
+      </div>
     </div>
+    <button class="btn btn-ghost" id="btn-settings">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      <span>Settings</span>
+    </button>
+    <a class="nav-link" href="/history/">EOD history</a>
+    <a class="nav-link" id="nav-oversight" href="/dashboard/" style="display:none">Team dashboard</a>
+    <a class="nav-link" href="/logout/">Sign out</a>
+  </div>
+</nav>
+
+<div class="page emp-page">
+
+  <p class="account-banner" id="account-banner" style="display:none" aria-live="polite"></p>
+
+  <header class="hero emp-hero">
+    <div>
+      <h1 id="greeting">Good afternoon<span> — let's wrap up.</span></h1>
+      <div class="emp-hero-meta">
+        <span id="today-date"></span>
+        <span class="pill" id="user-display">Team member</span>
+        <span class="pill pill-account" id="account-username" style="display:none"></span>
+        <span class="pill pill-role" id="account-role" style="display:none"></span>
+        <span class="pill" id="dept-display" style="display:none"></span>
+      </div>
+    </div>
+    <p class="emp-generate-hint">Add tasks below, then <strong>Generate</strong> → <strong>Post EOD</strong></p>
   </header>
 
-  <div class="tip-card">
-    <strong>One list, smart sorting.</strong> Dump everything you're working on. Check off what's done. Click <strong>⚠</strong> to flag a blocker, <strong>→</strong> to push to tomorrow. When you generate your EOD, done items go to "Completed," unchecked items become "In Progress," and the rest sort themselves.
-    <div class="legend">
-      <span class="legend-item"><span class="legend-swatch" style="background: var(--ok);"></span>Done</span>
-      <span class="legend-item"><span class="legend-swatch" style="background: var(--warn);"></span>Blocked</span>
-      <span class="legend-item"><span class="legend-swatch" style="background: var(--plan);"></span>Tomorrow</span>
-      <span class="legend-item"><span class="legend-swatch" style="background: var(--info);"></span>In progress (default)</span>
+  <div class="grid emp-grid">
+
+    <div class="main-col">
+      <div class="panel">
+        <div class="panel-head emp-log-head">
+          <span class="panel-title">Today's log</span>
+          <div class="emp-project-inline">
+            <label for="project-input">Project</label>
+            <input type="text" class="input-project" id="project-input" placeholder="optional tag" autocomplete="off"/>
+          </div>
+        </div>
+        <div class="emp-log-toolbar">
+          <span class="input-hint"><span><strong>+</strong> adds to your log only — use <strong>Generate</strong> when you're ready</span></span>
+          <details class="braindump-panel">
+            <summary>Brain dump · AI sorts notes</summary>
+            <textarea class="braindump-area" id="braindump-text" placeholder="Shipped the login fix, still waiting on design for settings page, tomorrow need to write tests…"></textarea>
+            <div class="braindump-actions">
+              <button type="button" class="btn btn-secondary" id="btn-braindump-parse">Parse</button>
+              <button type="button" class="btn btn-primary" id="btn-braindump-commit" style="display:none">Add selected</button>
+            </div>
+            <div class="braindump-drafts" id="braindump-drafts"></div>
+          </details>
+        </div>
+
+        <div class="panel-lanes-wrap">
+          <div id="banner-area"></div>
+          <div id="task-container"></div>
+          <div class="foot" id="footer-bar" style="display:none">
+            <span id="task-count-label"></span>
+            <button class="link-danger" id="btn-clear">Clear all</button>
+          </div>
+          <div class="log-action-bar" id="log-action-bar">
+            <div class="log-action-copy">
+              <p class="log-action-title">Ready to wrap up?</p>
+              <p class="log-action-steps" id="log-action-steps">
+                <span class="step" data-step="add">1. Add tasks</span>
+                <span aria-hidden="true">→</span>
+                <span class="step" data-step="generate">2. Generate</span>
+                <span aria-hidden="true">→</span>
+                <span class="step" data-step="post">3. Post EOD</span>
+              </p>
+              <p class="log-action-note">Your team only sees the report after you hit <strong>Post EOD</strong> in the preview.</p>
+            </div>
+            <button class="btn btn-primary btn-generate-lg" id="btn-generate" type="button" disabled>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              Generate EOD
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <aside class="panel-side emp-sidebar">
+      <div class="panel search-panel">
+        <div class="panel-head"><span class="panel-title">Search logs</span></div>
+        <div class="panel-body">
+          <div class="search-box">
+            <input type="search" id="search-input" placeholder="Search your logs…" autocomplete="off" aria-label="Search your logs"/>
+            <button class="btn btn-secondary" id="btn-search" type="button">Go</button>
+          </div>
+          <div class="search-results-wrap" id="search-results-panel" hidden>
+            <div class="search-results" id="search-results"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel overview-panel">
+        <div class="panel-head">
+          <span class="panel-title">Overview</span>
+          <span style="font-family:var(--mono);font-size:calc(12px * var(--s));color:var(--text-2)" id="progress-pct">0%</span>
+        </div>
+        <div class="panel-body overview-body">
+          <div class="bento">
+            <div class="bento-cell"><div class="bento-val" id="stat-total">0</div><div class="bento-label">Total</div></div>
+            <div class="bento-cell done"><div class="bento-val" id="stat-done">0</div><div class="bento-label">Done</div></div>
+            <div class="bento-cell"><div class="bento-val" id="stat-progress">0</div><div class="bento-label">Active</div></div>
+            <div class="bento-cell blocked"><div class="bento-val" id="stat-blocked">0</div><div class="bento-label">Blocked</div></div>
+          </div>
+          <div class="progress-block">
+            <div class="progress-top"><span>Progress</span><strong id="stat-tomorrow-label">0 tomorrow</strong></div>
+            <div class="progress-bar"><div id="progress-fill" style="width:0%"></div></div>
+          </div>
+        </div>
+        <span id="stat-tomorrow" style="display:none">0</span>
+        <details class="emp-shortcuts">
+          <summary>Keyboard shortcuts</summary>
+          <div class="shortcut-list">
+            <div class="shortcut-row"><span>Add in section</span><kbd>Enter</kbd></div>
+            <div class="shortcut-row"><span>Generate</span><kbd>Ctrl</kbd> <kbd>↵</kbd></div>
+            <div class="shortcut-row"><span>Close</span><kbd>Esc</kbd></div>
+          </div>
+        </details>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><span class="panel-title">Your rhythm</span></div>
+        <div class="panel-body">
+          <div class="insight-stat" id="consistency-box">
+            <strong id="consistency-pct">—</strong>
+            <span>days active (last 30)</span>
+            <div class="insight-msg" id="consistency-msg">Only you see this.</div>
+          </div>
+          <button class="btn btn-secondary btn-week-review" id="btn-week-review" type="button">Week in review</button>
+          <div class="review-output" id="week-review-out" style="display:none"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head panel-head-row">
+          <span class="panel-title">EOD history</span>
+          <a class="panel-head-link" href="/history/">View all</a>
+        </div>
+        <div class="panel-body flush eod-history-list" id="eod-history-list">
+          <div class="side-empty">Generate or post to build your history.</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><span class="panel-title">Wins archive</span></div>
+        <div class="panel-body flush wins-list" id="wins-list">
+          <div class="side-empty">Completed work accumulates here.</div>
+        </div>
+      </div>
+
+    </aside>
+
   </div>
-
-  <section class="add-section">
-    <input type="text" id="task-input" placeholder="Add a task…" autocomplete="off"/>
-    <input type="text" class="project-input" id="project-input" placeholder="Project (optional)" autocomplete="off"/>
-    <button class="add-btn" id="btn-add" title="Add task">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-    </button>
-  </section>
-
-  <div class="hint-row">
-    <kbd>Enter</kbd> to add · <kbd>⌘/Ctrl + Enter</kbd> to generate report
-  </div>
-
-  <div id="task-container"></div>
-
-  <div class="meta-footer">
-    <div class="progress-strip" id="progress-strip">
-      <span><strong>0</strong> total</span>
-    </div>
-    <button class="danger" id="btn-clear">Clear all</button>
-  </div>
-
 </div>
 
 <!-- Report modal -->
-<div class="modal-backdrop" id="modal-report">
+<div class="overlay" id="modal-report">
   <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title">Your <em>EOD Report</em></div>
-      <button class="icon-btn" data-close="modal-report">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    <div class="modal-head">
+      <div>
+        <h2>EOD Report</h2>
+        <p id="report-meta"></p>
+      </div>
+      <button class="btn btn-icon" data-close="modal-report" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
       </button>
     </div>
     <div class="modal-body">
-      <div class="report-output" id="report-output">Generating…</div>
+      <div class="format-tabs" id="format-tabs">
+        <button type="button" class="format-tab active" data-format="PLAIN">Plain text</button>
+        <button type="button" class="format-tab" data-format="SLACK">Slack</button>
+        <button type="button" class="format-tab" data-format="EMAIL">Email</button>
+      </div>
+      <div class="gen-options">
+        <div><label>Tone</label><select id="gen-tone"><option value="professional">Professional</option><option value="casual">Casual</option><option value="concise">Concise</option></select></div>
+        <div><label>Length</label><select id="gen-length"><option value="brief">Brief</option><option value="standard" selected>Standard</option><option value="detailed">Detailed</option></select></div>
+      </div>
+      <div id="report-output">
+        <div class="loading"><div class="spinner"></div>Generating…</div>
+      </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn-secondary" id="btn-regenerate">Regenerate</button>
-      <button class="btn-secondary" id="btn-copy">Copy</button>
-      <button class="btn-primary" data-close="modal-report">Done</button>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" id="btn-regenerate">Regenerate</button>
+      <button class="btn btn-secondary" id="btn-copy">Copy</button>
+      <button class="btn btn-primary" id="btn-post-eod">Post EOD</button>
+      <button class="btn btn-secondary" data-close="modal-report">Done</button>
     </div>
   </div>
 </div>
 
-<!-- Settings modal -->
-<div class="modal-backdrop" id="modal-settings">
+<!-- Settings -->
+<div class="overlay" id="modal-settings">
   <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title">Settings</div>
-      <button class="icon-btn" data-close="modal-settings">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    <div class="modal-head">
+      <div>
+        <h2>Settings</h2>
+        <p>Profile & AI preferences</p>
+      </div>
+      <button class="btn btn-icon" data-close="modal-settings" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
       </button>
     </div>
     <div class="modal-body">
-      <div class="settings-field">
-        <label for="settings-name">Your Name</label>
-        <input type="text" id="settings-name" placeholder="Bernard Tapiru"/>
+      <div class="field-section">Appearance</div>
+      <div class="field">
+        <label for="settings-theme">Theme</label>
+        <select id="settings-theme">
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+          <option value="system">System</option>
+        </select>
+        <div class="field-hint">System follows your OS preference.</div>
       </div>
-      <div class="settings-field">
-        <div class="settings-hint">OpenAI key is loaded from server <code>.env</code> using <code>dotenv</code>.</div>
+
+      <div class="field-section">Profile</div>
+      <div class="field">
+        <label for="settings-name">Name</label>
+        <input type="text" id="settings-name" placeholder="Jane Smith"/>
       </div>
-      <div class="settings-field">
+      <div class="field">
+        <label for="settings-dept">Team</label>
+        <input type="text" id="settings-dept" placeholder="Engineering"/>
+      </div>
+
+      <div class="field-section">Report defaults</div>
+      <div class="field">
+        <label for="settings-format">Default format</label>
+        <select id="settings-format">
+          <option value="PLAIN">Plain text</option>
+          <option value="SLACK">Slack</option>
+          <option value="EMAIL">Manager email</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="settings-tone">Default tone</label>
+        <select id="settings-tone">
+          <option value="professional">Professional</option>
+          <option value="casual">Casual</option>
+          <option value="concise">Concise</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="settings-length">Default length</label>
+        <select id="settings-length">
+          <option value="brief">Brief</option>
+          <option value="standard">Standard</option>
+          <option value="detailed">Detailed</option>
+        </select>
+      </div>
+
+      <div class="field-section">Auto-send</div>
+      <div class="field">
+        <label><input type="checkbox" id="settings-auto-send"/> Enable daily auto-send</label>
+        <div class="field-hint">Runs via server cron: <code>python manage.py send_scheduled_eods</code></div>
+      </div>
+      <div class="field">
+        <label for="settings-timezone">Timezone</label>
+        <input type="text" id="settings-timezone" placeholder="America/New_York" value="UTC"/>
+      </div>
+      <div class="field">
+        <label for="settings-send-time">Send at (local time)</label>
+        <input type="time" id="settings-send-time"/>
+      </div>
+      <div class="field">
+        <label for="settings-quiet-start">Quiet hours start</label>
+        <input type="time" id="settings-quiet-start"/>
+      </div>
+      <div class="field">
+        <label for="settings-quiet-end">Quiet hours end</label>
+        <input type="time" id="settings-quiet-end"/>
+      </div>
+
+      <div class="field-section">AI</div>
+      <div class="field">
         <label for="settings-model">Model</label>
-        <input type="text" id="settings-model" placeholder="gpt-4o-mini"/>
-        <div class="settings-hint">Try <code>gpt-4o-mini</code> (cheap & fast) or <code>gpt-4o</code> (more polished).</div>
+        <select id="settings-model">
+          <option value="gpt-4o-mini">GPT-4o Mini</option>
+          <option value="gpt-4o">GPT-4o</option>
+          <option value="gpt-4.1-mini">GPT-4.1 Mini</option>
+          <option value="gpt-4.1">GPT-4.1</option>
+        </select>
       </div>
-      <div class="settings-field">
-        <label for="settings-style">Custom style guide (optional)</label>
-        <textarea id="settings-style" placeholder="e.g. keep bullets concise, group by project, avoid marketing tone…"></textarea>
+      <div class="field">
+        <label for="settings-style">Style guide</label>
+        <textarea id="settings-style" placeholder="Concise bullets, active voice, group by project…"></textarea>
+        <div class="field-hint">API key secured in server <code>.env</code></div>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn-secondary" data-close="modal-settings">Cancel</button>
-      <button class="btn-primary" id="btn-save-settings">Save</button>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" data-close="modal-settings">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-settings">Save</button>
     </div>
   </div>
 </div>
 
-<div class="toast" id="toast">Saved</div>
-
+<div class="toast" id="toast"><span id="toast-msg">Saved</span></div>
+{% endblock %}
+{% block scripts %}
 <script>
-  const KEY_TASKS = 'eod:tasks';
-  const KEY_SETTINGS = 'eod:settings';
+const KEY_THEME = 'closeout:theme';
+const KEY_TEXT = 'closeout:emp-text';
+const TEXT_SCALES = [92, 102, 112, 124, 138];
 
-  async function storageGet(key, fallback) {
-    try {
-      const res = await window.storage.get(key);
-      if (!res) return fallback;
-      try { return JSON.parse(res.value); } catch { return res.value; }
-    } catch { return fallback; }
+  function getSystemTheme() {
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
   }
-  async function storageSet(key, value) {
-    try { await window.storage.set(key, JSON.stringify(value)); }
-    catch (e) { console.error('Storage write failed', e); }
+  function resolveTheme(pref) {
+    if (pref === 'system' || !pref) return getSystemTheme();
+    return pref === 'light' ? 'light' : 'dark';
+  }
+  function applyTheme(pref, animate) {
+    const resolved = resolveTheme(pref);
+    if (animate) {
+      document.documentElement.classList.add('theme-anim');
+      setTimeout(() => document.documentElement.classList.remove('theme-anim'), 300);
+    }
+    document.documentElement.setAttribute('data-theme', resolved);
+  }
+  function getThemePref() { return localStorage.getItem(KEY_THEME) || 'system'; }
+  function setThemePref(pref) {
+    if (pref === 'system') localStorage.removeItem(KEY_THEME);
+    else localStorage.setItem(KEY_THEME, pref);
+    applyTheme(pref, true);
+  }
+  window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+    if (getThemePref() === 'system') applyTheme('system', false);
+  });
+
+  function getCookie(name) {
+    if (!document.cookie) return null;
+    for (const part of document.cookie.split(';')) {
+      const [k, ...rest] = part.trim().split('=');
+      if (k === name) return decodeURIComponent(rest.join('='));
+    }
+    return null;
+  }
+
+  async function api(url, opts = {}) {
+    const method = opts.method || 'GET';
+    const headers = { ...(opts.headers || {}) };
+    if (opts.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+    if (method !== 'GET') headers['X-CSRFToken'] = getCookie('csrftoken');
+    const resp = await fetch(url, { ...opts, method, headers, body: opts.body });
+    let data = {};
+    try { data = await resp.json(); } catch { /* empty */ }
+    if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+    return data;
   }
 
   let tasks = [];
-  let settings = { name: '', model: 'gpt-4o-mini', style: '' };
+  let staleElsewhere = [];
+  let teamUsers = [];
+  let braindumpDrafts = [];
+  let lastRolledCount = 0;
+  const editingBlocker = new Set();
+  let settings = { name: '', dept: '', model: 'gpt-4o-mini', style: '', format: 'PLAIN', tone: 'professional', length: 'standard', timezone: 'UTC', auto_send_enabled: false };
+  let hasOversight = false;
+  let accountUsername = '';
+  let accountRole = '';
 
   const $ = id => document.getElementById(id);
-  const taskInput = $('task-input');
   const projectInput = $('project-input');
   const container = $('task-container');
+  const todayISO = () => new Date().toISOString().slice(0, 10);
 
-  (async function init() {
-    const d = new Date();
-    $('today-date').textContent = d.toLocaleDateString('en-US', {
-      weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
-    });
+  const LANES = [
+    { status: 'DONE', label: 'Done', hint: 'Shipped today', css: 'done', placeholder: 'What did you finish?' },
+    { status: 'IN_PROGRESS', label: 'In progress', hint: 'Still working on', css: 'progress', placeholder: 'What are you working on?' },
+    { status: 'BLOCKED', label: 'Blocked', hint: 'Stuck or waiting', css: 'blocked', placeholder: "What's blocking you?" },
+    { status: 'TOMORROW', label: 'Tomorrow', hint: 'Picking up next', css: 'tmr', placeholder: 'What carries over?' },
+  ];
 
-    tasks = await storageGet(KEY_TASKS, []) || [];
-    settings = { ...settings, ...(await storageGet(KEY_SETTINGS, {}) || {}) };
+  function formatReportDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso + 'T12:00:00');
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  }
 
-    render();
-    updateKeyStatus();
-  })();
+  function formatNotifyTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const now = new Date();
+    const mins = Math.floor((now - d) / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return mins + 'm ago';
+    if (mins < 1440) return Math.floor(mins / 60) + 'h ago';
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
 
-  function render() {
-    if (tasks.length === 0) {
-      container.innerHTML = `
-        <div class="empty-state">
-          <span class="emoji">📝</span>
-          Add your first task above. Don't overthink it — dump it all, sort it later.
-        </div>`;
-      updateProgress();
+  function openReportDetail(rep) {
+    const posted = rep.status === 'SUBMITTED';
+    openM('modal-report');
+    $('report-meta').textContent = `${formatReportDate(rep.date)} · ${posted ? 'Posted' : 'Draft'}`;
+    $('report-output').innerHTML = `<div class="report">${escapeHtml(rep.content || '')}</div>`;
+    const postBtn = $('btn-post-eod');
+    if (postBtn) {
+      postBtn.style.display = posted ? 'none' : '';
+      postBtn.textContent = posted ? 'Posted ✓' : 'Post EOD';
+    }
+  }
+
+  async function openHistoryReport(id) {
+    try {
+      const rep = await api('/api/reports/' + id + '/');
+      openReportDetail(rep);
+    } catch (e) { toast(e.message); }
+  }
+
+  async function loadReportHistory() {
+    const list = $('eod-history-list');
+    if (!list) return;
+    try {
+      const d = await api('/api/reports/?limit=30&status=SUBMITTED');
+      const reports = (d.reports || []).slice(0, 3);
+      if (!reports.length) {
+        list.innerHTML = '<div class="side-empty">Generate or post to build your history.</div>';
+        return;
+      }
+      const rows = reports.map(r => {
+        const preview = r.preview || r.excerpt || 'No preview';
+        return `<button type="button" class="history-row" data-report-id="${r.id}">
+          <div class="history-row-top">
+            <span class="history-date">${escapeHtml(formatReportDate(r.date))}</span>
+            <span class="history-status posted">Posted</span>
+          </div>
+          <p class="history-excerpt">${escapeHtml(preview)}</p>
+        </button>`;
+      }).join('');
+      const more = (d.reports || []).length > 3
+        ? '<a class="history-view-all" href="/history/">View all posted EODs →</a>'
+        : '<a class="history-view-all" href="/history/">Open full history →</a>';
+      list.innerHTML = `<div class="eod-history-entries">${rows}</div>${more}`;
+      list.querySelectorAll('[data-report-id]').forEach(btn => {
+        btn.onclick = () => openHistoryReport(btn.dataset.reportId);
+      });
+    } catch (e) {
+      list.innerHTML = '<div class="side-empty">Could not load history.</div>';
+    }
+  }
+
+  let notifyOpen = false;
+  let notifyItems = [];
+
+  function setNotifyOpen(open) {
+    notifyOpen = open;
+    const dropdown = $('notify-dropdown');
+    const btn = $('btn-notify');
+    if (dropdown) dropdown.hidden = !open;
+    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  function renderNotifyDropdown() {
+    const list = $('notify-list');
+    const markAll = $('notify-mark-all');
+    const badge = $('notify-badge');
+    if (!list) return;
+    if (!notifyItems.length) {
+      list.innerHTML = '<div class="notify-empty">No new notifications</div>';
+      if (markAll) markAll.style.display = 'none';
+      if (badge) badge.style.display = 'none';
       return;
     }
-
-    const byProject = {};
-    tasks.forEach(t => {
-      const key = t.project || '';
-      if (!byProject[key]) byProject[key] = [];
-      byProject[key].push(t);
+    if (badge) {
+      badge.textContent = String(notifyItems.length);
+      badge.style.display = '';
+    }
+    if (markAll) markAll.style.display = '';
+    list.innerHTML = notifyItems.map(n => `
+      <button type="button" class="notify-item" data-nid="${n.id}">
+        <p>${escapeHtml(n.message)}</p>
+        <time>${escapeHtml(formatNotifyTime(n.created_at))}</time>
+      </button>
+    `).join('');
+    list.querySelectorAll('.notify-item').forEach(item => {
+      item.onclick = async () => {
+        await api('/api/notifications/read/', {
+          method: 'POST',
+          body: JSON.stringify({ ids: [parseInt(item.dataset.nid, 10)] }),
+        });
+        notifyItems = notifyItems.filter(x => x.id !== parseInt(item.dataset.nid, 10));
+        renderNotifyDropdown();
+        setNotifyOpen(false);
+        await loadTasks();
+        toast('Task added to your log');
+      };
     });
+  }
 
-    let html = '';
-    const projectKeys = Object.keys(byProject).sort((a, b) => {
-      if (a === '') return 1;
-      if (b === '') return -1;
-      return a.localeCompare(b);
-    });
+  async function loadNotifications() {
+    try {
+      const data = await api('/api/notifications/');
+      notifyItems = data.notifications || [];
+      renderNotifyDropdown();
+    } catch (e) { /* non-fatal */ }
+  }
 
-    projectKeys.forEach(pk => {
-      if (pk) {
-        html += `<div class="section-label"><span class="label-text">${escapeHtml(pk)}</span></div>`;
-      } else if (projectKeys.length > 1) {
-        html += `<div class="section-label"><span class="label-text">No project</span></div>`;
+  async function markAllNotificationsRead() {
+    if (!notifyItems.length) return;
+    await api('/api/notifications/read/', { method: 'POST', body: '{}' });
+    notifyItems = [];
+    renderNotifyDropdown();
+  }
+
+  function greet() {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
+  function updateUser() {
+    const name = settings.name || 'Team member';
+    $('user-display').textContent = name;
+    const userPill = $('account-username');
+    const rolePill = $('account-role');
+    const banner = $('account-banner');
+    if (accountUsername) {
+      if (userPill) {
+        userPill.textContent = '@' + accountUsername;
+        userPill.style.display = '';
       }
-      html += '<ul class="task-list">';
-      byProject[pk].forEach(t => html += renderTask(t));
-      html += '</ul>';
+      if (rolePill && accountRole) {
+        const labels = { EMPLOYEE: 'Employee', MANAGER: 'Manager', BOSS: 'Boss' };
+        rolePill.textContent = labels[accountRole] || accountRole;
+        rolePill.style.display = '';
+      }
+      if (banner) {
+        banner.innerHTML = 'Logged in as <strong>@' + escapeHtml(accountUsername) + '</strong> — tasks and EOD posts are saved to this account only.';
+        banner.style.display = '';
+      }
+    }
+    const first = settings.name?.split(' ')[0];
+    $('greeting').innerHTML = first
+      ? `${greet()}, ${escapeHtml(first)}<span> — let's wrap up.</span>`
+      : `${greet()}<span> — let's wrap up.</span>`;
+    if (settings.dept) {
+      $('dept-display').textContent = settings.dept;
+      $('dept-display').style.display = '';
+    } else $('dept-display').style.display = 'none';
+  }
+
+  function statusClass(s) {
+    if (s === 'DONE') return 'is-done';
+    if (s === 'BLOCKED') return 'is-blocked';
+    if (s === 'TOMORROW') return 'is-tomorrow';
+    return '';
+  }
+
+
+  let genFormat = 'PLAIN';
+
+  function syncGenOptions() {
+    genFormat = settings.format || 'PLAIN';
+    document.querySelectorAll('.format-tab').forEach(tab => {
+      tab.classList.toggle('active', tab.dataset.format === genFormat);
     });
+    if ($('gen-tone')) $('gen-tone').value = settings.tone || 'professional';
+    if ($('gen-length')) $('gen-length').value = settings.length || 'standard';
+  }
+
+  function timeToInput(val) {
+    if (!val) return '';
+    return val.slice(0, 5);
+  }
+
+  function inputToTime(val) {
+    return val ? val + ':00' : null;
+  }
+
+  async function loadInsights() {
+    try {
+      const c = await api('/api/insights/consistency/');
+      if ($('consistency-pct')) $('consistency-pct').textContent = c.active_days + '/' + c.window_days;
+      if ($('consistency-msg')) $('consistency-msg').textContent = c.message;
+      const w = await api('/api/insights/wins/');
+      const box = $('wins-list');
+      if (!box) return;
+      if (!w.wins?.length) {
+        box.innerHTML = '<div class="side-empty">Wins appear as you complete tasks.</div>';
+      } else {
+        box.innerHTML = w.wins.map(win =>
+          `<div class="win-item"><div class="win-date">${escapeHtml(win.date)}</div><div class="win-title">${escapeHtml(win.title)}</div></div>`
+        ).join('');
+      }
+    } catch (e) { console.error(e); }
+  }
+
+  async function runSearch() {
+    const q = $('search-input').value.trim();
+    const wrap = $('search-results-panel');
+    if (q.length < 2) {
+      if (wrap) wrap.hidden = true;
+      return;
+    }
+    try {
+      const d = await api('/api/search/?q=' + encodeURIComponent(q));
+      const box = $('search-results');
+      if (wrap) wrap.hidden = false;
+      if (!d.results?.length) {
+        box.innerHTML = '<div class="search-empty">No matches</div>';
+        return;
+      }
+      box.innerHTML = d.results.map(r =>
+        `<div class="search-hit" data-report="${r.type === 'report' ? r.id : ''}"><strong>${escapeHtml(r.title)}</strong><div class="meta">${escapeHtml(r.date)}${r.user ? ' · ' + escapeHtml(r.user) : ''}</div></div>`
+      ).join('');
+      box.querySelectorAll('[data-report]').forEach(el => {
+        if (!el.dataset.report) return;
+        el.onclick = () => openHistoryReport(el.dataset.report);
+      });
+    } catch (e) { toast(e.message); }
+  }
+
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  async function loadProfile() {
+    const p = await api('/api/profile/');
+    settings = {
+      name: p.display_name || '',
+      dept: p.department || '',
+      model: p.ai_model || 'gpt-4o-mini',
+      style: p.style_guide || '',
+      format: p.default_format || 'PLAIN',
+      tone: p.default_tone || 'professional',
+      length: p.default_length || 'standard',
+      timezone: p.timezone || 'UTC',
+      auto_send_enabled: !!p.auto_send_enabled,
+      auto_send_time: p.auto_send_time,
+      quiet_hours_start: p.quiet_hours_start,
+      quiet_hours_end: p.quiet_hours_end,
+    };
+    hasOversight = !!(p.has_oversight || p.is_manager);
+    accountUsername = p.username || '';
+    accountRole = p.role || '';
+    updateUser();
+    syncGenOptions();
+    loadInsights();
+  }
+
+  async function loadUsers() {
+    const d = await api('/api/users/');
+    teamUsers = d.users || [];
+  }
+
+  async function loadTasks() {
+    const d = await api(`/api/tasks/?date=${todayISO()}`);
+    tasks = d.tasks || [];
+    staleElsewhere = d.stale_elsewhere || [];
+    lastRolledCount = d.rolled_count || 0;
+    renderBanners();
+    render();
+    if (lastRolledCount > 0) toast(`${lastRolledCount} item${lastRolledCount > 1 ? 's' : ''} rolled from yesterday`);
+  }
+
+  function renderBanners() {
+    let html = '';
+    if (lastRolledCount > 0) {
+      html += `<div class="rollover-banner">${lastRolledCount} tomorrow item${lastRolledCount > 1 ? 's' : ''} moved to today's log.</div>`;
+    }
+    const staleToday = tasks.filter(t => t.is_stale && t.status === 'IN_PROGRESS');
+    const allStale = [...staleToday, ...staleElsewhere.filter(s => !tasks.find(t => t.id === s.id))];
+    if (allStale.length) {
+      html += `<div class="stale-banner"><strong>Still on track?</strong> These haven't moved in 3+ days.</div>`;
+      allStale.forEach(s => {
+        html += `<div class="stale-item"><span>${escapeHtml(s.title)}</span><button class="btn btn-secondary" data-stale-block="${s.id}">Mark blocked</button></div>`;
+      });
+    }
+    $('banner-area').innerHTML = html;
+    document.querySelectorAll('[data-stale-block]').forEach(btn => {
+      btn.onclick = async () => {
+        try {
+          await api(`/api/tasks/${btn.dataset.staleBlock}/mark-blocked/`, { method: 'POST', body: JSON.stringify({}) });
+          await loadTasks();
+          toast('Marked blocked');
+        } catch (e) { toast(e.message); }
+      };
+    });
+  }
+
+  function render() {
+    renderBanners();
+
+    let html = '<div class="log-template">';
+    LANES.forEach(lane => {
+      const laneTasks = tasks.filter(t => t.status === lane.status);
+      html += `<section class="log-lane lane-${lane.css}" data-lane="${lane.status}">
+        <header class="lane-head">
+          <span class="lane-title"><i class="lane-dot"></i>${lane.label}</span>
+          <span class="lane-count">${laneTasks.length}</span>
+        </header>
+        <p class="lane-hint">${lane.hint}</p>
+        <div class="lane-add">
+          <input type="text" data-lane-input="${lane.status}" placeholder="${lane.placeholder}" autocomplete="off"/>
+          <button type="button" data-lane-add="${lane.status}" aria-label="Add to ${lane.label}">+</button>
+        </div>
+        <ul class="tasks lane-tasks">${laneTasks.map(t => renderTask(t)).join('')}</ul>
+        ${laneTasks.length ? '' : '<p class="lane-empty">Nothing here yet</p>'}
+      </section>`;
+    });
+    html += '</div>';
 
     container.innerHTML = html;
-    attachHandlers();
-    updateProgress();
+    bindLaneAdds();
+    bind();
+
+    if (tasks.length) {
+      $('footer-bar').style.display = 'flex';
+      $('task-count-label').textContent = `${tasks.length} task${tasks.length > 1 ? 's' : ''}`;
+    } else {
+      $('footer-bar').style.display = 'none';
+    }
+    updateStats();
+    updateActionBar();
+  }
+
+  function updateActionBar() {
+    const hasTasks = tasks.length > 0;
+    const genBtn = $('btn-generate');
+    if (genBtn) genBtn.disabled = !hasTasks;
+    document.querySelectorAll('.log-action-steps .step[data-step="add"]').forEach(el => {
+      el.classList.toggle('is-ready', hasTasks);
+    });
+  }
+
+  function bindLaneAdds() {
+    document.querySelectorAll('[data-lane-add]').forEach(btn => {
+      btn.onclick = () => addTask(btn.dataset.laneAdd);
+    });
+    document.querySelectorAll('[data-lane-input]').forEach(inp => {
+      inp.onkeydown = e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          addTask(inp.dataset.laneInput, inp);
+        }
+      };
+    });
+  }
+
+  function focusFirstLane() {
+    const inp = document.querySelector('[data-lane-input="IN_PROGRESS"]') || document.querySelector('[data-lane-input]');
+    inp?.focus();
+  }
+
+  function userOptions(selected) {
+    return teamUsers.map(u =>
+      `<option value="${u.id}" ${String(u.id) === String(selected) ? 'selected' : ''}>${escapeHtml(u.display_name)}</option>`
+    ).join('');
   }
 
   function renderTask(t) {
-    const cls = [
-      'task',
-      t.done ? 'is-done' : '',
-      t.blocker ? 'is-blocked' : '',
-      t.tomorrow ? 'is-tomorrow' : ''
-    ].filter(Boolean).join(' ');
+    const cls = ['task', statusClass(t.status)].filter(Boolean).join(' ');
+    const isDone = t.status === 'DONE';
+    const isBlocked = t.status === 'BLOCKED';
+    const isTmr = t.status === 'TOMORROW';
+    const b = t.blocker;
+    const editing = editingBlocker.has(t.id);
 
-    const blockerHTML = t.blocker
-      ? `<div class="task-blocker-note">${escapeHtml(t.blocker)}</div>`
-      : (t._editingBlocker
-          ? `<div class="blocker-editor">
-               <input type="text" data-blocker-input="${t.id}" placeholder="What's blocking this?" value="${escapeHtml(t._draftBlocker || '')}"/>
-               <button data-blocker-save="${t.id}">Save</button>
-             </div>`
-          : '');
+    let blockerHtml = '';
+    if (editing) {
+      blockerHtml = `<div class="blocker-form-inline" data-blocker-form="${t.id}">
+        <select data-field="kind">
+          <option value="BLOCKED">I'm stuck (blocked)</option>
+          <option value="NEEDS_FROM_OTHERS">Waiting on others</option>
+        </select>
+        <select data-field="unblocker_id"><option value="">— Team member —</option>${userOptions('')}</select>
+        <input data-field="dependency_text" placeholder="Or name a dependency (team, vendor, approval…)" />
+        <textarea data-field="note" rows="2" placeholder="What's blocking progress?"></textarea>
+        <div class="blocker-form-row">
+          <button type="button" class="btn btn-primary" data-blocker-save="${t.id}">Save blocker</button>
+          <button type="button" class="btn btn-secondary" data-blocker-cancel="${t.id}">Cancel</button>
+        </div>
+      </div>`;
+    } else if (b) {
+      const who = b.unblocker ? b.unblocker.display_name : (b.dependency_text || '');
+      blockerHtml = `<div class="blocker-note">${escapeHtml(b.note || who || b.kind_label)}</div>
+        <div class="blocker-meta ${b.kind === 'NEEDS_FROM_OTHERS' ? 'plan' : ''}">${escapeHtml(b.kind_label)}${b.age_label ? ' · ' + escapeHtml(b.age_label) : ''}${who ? ' · ' + escapeHtml(who) : ''}</div>`;
+    }
 
-    const tomorrowHTML = t.tomorrow && !t.done
-      ? `<div class="task-tomorrow-note">Pushed to tomorrow</div>`
-      : '';
+    const chips = [];
+    if (t.from_boss) chips.push('<span class="task-chip boss">From boss</span>');
+    if (isBlocked && b) chips.push(`<span class="task-chip warn">${b.kind === 'NEEDS_FROM_OTHERS' ? 'Needs others' : 'Blocked'}</span>`);
+    if (isTmr) chips.push('<span class="task-chip plan">Tomorrow</span>');
+    if (t.is_stale && t.status === 'IN_PROGRESS') chips.push('<span class="task-chip warn">Stale</span>');
 
-    return `
-      <li class="${cls}" data-id="${t.id}">
-        <button class="check ${t.done ? 'checked' : ''}" data-toggle="${t.id}" title="Mark done">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    return `<li class="${cls}">
+      <button class="check ${isDone ? 'on' : ''}" data-toggle="${t.id}" aria-label="Toggle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </button>
+      <div class="task-body">
+        <div class="task-text">${escapeHtml(t.title)}</div>
+        ${chips.length ? `<div class="task-tags">${chips.join('')}</div>` : ''}
+        ${blockerHtml}
+      </div>
+      <div class="task-acts">
+        <button class="act ${isBlocked ? 'on-warn' : ''}" data-block="${t.id}" title="Blocker">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         </button>
-        <div class="task-body">
-          <div class="task-text">${escapeHtml(t.text)}</div>
-          ${blockerHTML}
-          ${tomorrowHTML}
-        </div>
-        <div class="task-actions">
-          <button class="task-action ${t.blocker ? 'active-block' : ''}" data-block="${t.id}" title="${t.blocker ? 'Remove blocker' : 'Add blocker'}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          </button>
-          <button class="task-action ${t.tomorrow ? 'active-tmr' : ''}" data-tomorrow="${t.id}" title="${t.tomorrow ? 'Keep for today' : 'Push to tomorrow'}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-          </button>
-          <button class="task-action" data-delete="${t.id}" title="Delete">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-          </button>
-        </div>
-      </li>`;
+        <button class="act ${isTmr ? 'on-plan' : ''}" data-tomorrow="${t.id}" title="Tomorrow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+        <button class="act danger" data-delete="${t.id}" title="Delete">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+      </div>
+    </li>`;
   }
 
-  function escapeHtml(str) {
-    return String(str || '').replace(/[&<>"']/g, c => ({
-      '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
-    })[c]);
-  }
-
-  function updateProgress() {
+  function updateStats() {
     const total = tasks.length;
-    const done = tasks.filter(t => t.done).length;
-    const blocked = tasks.filter(t => t.blocker && !t.done).length;
-    const tomorrow = tasks.filter(t => t.tomorrow && !t.done).length;
-    const inProgress = tasks.filter(t => !t.done && !t.blocker && !t.tomorrow).length;
-
-    const parts = [`<span><strong>${total}</strong> total</span>`];
-    if (done) parts.push(`<span><strong>${done}</strong> done</span>`);
-    if (inProgress) parts.push(`<span><strong>${inProgress}</strong> in progress</span>`);
-    if (blocked) parts.push(`<span><strong>${blocked}</strong> blocked</span>`);
-    if (tomorrow) parts.push(`<span><strong>${tomorrow}</strong> tomorrow</span>`);
-
-    $('progress-strip').innerHTML = parts.join('');
+    const done = tasks.filter(t => t.status === 'DONE').length;
+    const blocked = tasks.filter(t => t.status === 'BLOCKED').length;
+    const tmr = tasks.filter(t => t.status === 'TOMORROW').length;
+    const active = tasks.filter(t => t.status === 'IN_PROGRESS').length;
+    const pct = total ? Math.round(done / total * 100) : 0;
+    $('stat-total').textContent = total;
+    $('stat-done').textContent = done;
+    $('stat-progress').textContent = active;
+    $('stat-blocked').textContent = blocked;
+    $('stat-tomorrow').textContent = tmr;
+    $('progress-pct').textContent = pct + '%';
+    $('stat-tomorrow-label').textContent = tmr + ' tomorrow';
+    $('progress-fill').style.width = pct + '%';
   }
 
-  function attachHandlers() {
+  function bind() {
     document.querySelectorAll('[data-toggle]').forEach(el => {
-      el.onclick = () => {
-        const id = el.dataset.toggle;
-        const t = tasks.find(x => x.id === id);
+      el.onclick = async () => {
+        const t = tasks.find(x => String(x.id) === el.dataset.toggle);
         if (!t) return;
-        t.done = !t.done;
-        if (t.done) t.tomorrow = false;
-        save();
+        const next = t.status === 'DONE' ? 'IN_PROGRESS' : 'DONE';
+        try {
+          const d = await api(`/api/tasks/${t.id}/`, { method: 'PATCH', body: JSON.stringify({ status: next }) });
+          Object.assign(t, d.task);
+          render();
+          if (next === 'DONE') loadInsights();
+        } catch (e) { toast(e.message); }
       };
     });
 
     document.querySelectorAll('[data-block]').forEach(el => {
-      el.onclick = (e) => {
+      el.onclick = async e => {
         e.stopPropagation();
-        const id = el.dataset.block;
-        const t = tasks.find(x => x.id === id);
+        const t = tasks.find(x => String(x.id) === el.dataset.block);
         if (!t) return;
         if (t.blocker) {
-          t.blocker = null;
-          save();
+          try {
+            const d = await api(`/api/tasks/${t.id}/blocker/`, { method: 'DELETE' });
+            Object.assign(t, d.task);
+            render();
+          } catch (err) { toast(err.message); }
         } else {
-          t._editingBlocker = true;
+          editingBlocker.add(t.id);
           render();
-          setTimeout(() => {
-            const inp = document.querySelector(`[data-blocker-input="${id}"]`);
-            if (inp) inp.focus();
-          }, 20);
         }
       };
     });
 
-    document.querySelectorAll('[data-blocker-input]').forEach(inp => {
-      const id = inp.dataset.blockerInput;
-      const t = tasks.find(x => x.id === id);
-      inp.addEventListener('input', () => { if (t) t._draftBlocker = inp.value; });
-      inp.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); commitBlocker(id); }
-        if (e.key === 'Escape') {
-          if (t) { delete t._editingBlocker; delete t._draftBlocker; }
-          render();
-        }
-      });
-    });
     document.querySelectorAll('[data-blocker-save]').forEach(btn => {
-      btn.onclick = () => commitBlocker(btn.dataset.blockerSave);
+      btn.onclick = async () => {
+        const id = btn.dataset.blockerSave;
+        const form = document.querySelector(`[data-blocker-form="${id}"]`);
+        if (!form) return;
+        const payload = {
+          kind: form.querySelector('[data-field="kind"]').value,
+          unblocker_id: form.querySelector('[data-field="unblocker_id"]').value || null,
+          dependency_text: form.querySelector('[data-field="dependency_text"]').value,
+          note: form.querySelector('[data-field="note"]').value,
+        };
+        try {
+          const d = await api(`/api/tasks/${id}/blocker/`, { method: 'POST', body: JSON.stringify(payload) });
+          editingBlocker.delete(Number(id));
+          const t = tasks.find(x => String(x.id) === id);
+          if (t) Object.assign(t, d.task);
+          render();
+        } catch (e) { toast(e.message); }
+      };
+    });
+
+    document.querySelectorAll('[data-blocker-cancel]').forEach(btn => {
+      btn.onclick = () => { editingBlocker.delete(Number(btn.dataset.blockerCancel)); render(); };
     });
 
     document.querySelectorAll('[data-tomorrow]').forEach(el => {
-      el.onclick = (e) => {
+      el.onclick = async e => {
         e.stopPropagation();
-        const id = el.dataset.tomorrow;
-        const t = tasks.find(x => x.id === id);
+        const t = tasks.find(x => String(x.id) === el.dataset.tomorrow);
         if (!t) return;
-        t.tomorrow = !t.tomorrow;
-        if (t.tomorrow) t.done = false;
-        save();
+        const next = t.status === 'TOMORROW' ? 'IN_PROGRESS' : 'TOMORROW';
+        try {
+          const d = await api(`/api/tasks/${t.id}/`, { method: 'PATCH', body: JSON.stringify({ status: next }) });
+          Object.assign(t, d.task);
+          render();
+        } catch (err) { toast(err.message); }
       };
     });
 
     document.querySelectorAll('[data-delete]').forEach(el => {
-      el.onclick = (e) => {
+      el.onclick = async e => {
         e.stopPropagation();
-        const id = el.dataset.delete;
-        tasks = tasks.filter(t => t.id !== id);
-        save();
+        try {
+          await api(`/api/tasks/${el.dataset.delete}/`, { method: 'DELETE' });
+          tasks = tasks.filter(t => String(t.id) !== el.dataset.delete);
+          render();
+        } catch (err) { toast(err.message); }
       };
     });
   }
 
-  function commitBlocker(id) {
-    const t = tasks.find(x => x.id === id);
-    if (!t) return;
-    const val = (t._draftBlocker || '').trim();
-    if (val) t.blocker = val;
-    delete t._editingBlocker;
-    delete t._draftBlocker;
-    save();
+  async function addTask(status, inputEl) {
+    const input = inputEl || document.querySelector(`[data-lane-input="${status || 'IN_PROGRESS'}"]`);
+    const title = (input?.value || '').trim();
+    if (!title) return;
+    try {
+      const d = await api('/api/tasks/', {
+        method: 'POST',
+        body: JSON.stringify({
+          title,
+          project: projectInput.value.trim(),
+          date: todayISO(),
+          status: status || 'IN_PROGRESS',
+        }),
+      });
+      tasks.unshift(d.task);
+      if (input) input.value = '';
+      input?.focus();
+      render();
+    } catch (e) { toast(e.message); }
   }
 
-  function save() {
-    const clean = tasks.map(t => {
-      const { _editingBlocker, _draftBlocker, ...rest } = t;
-      return rest;
-    });
-    storageSet(KEY_TASKS, clean);
-    render();
-  }
-
-  function addTask() {
-    const text = taskInput.value.trim();
-    if (!text) return;
-    const project = projectInput.value.trim();
-    tasks.push({
-      id: 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
-      text,
-      project,
-      done: false,
-      blocker: null,
-      tomorrow: false,
-      createdAt: new Date().toISOString()
-    });
-    save();
-    taskInput.value = '';
-    taskInput.focus();
-  }
-
-  $('btn-add').onclick = addTask;
-  taskInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); addTask(); }
-  });
-  projectInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); addTask(); }
-  });
-
-  $('btn-clear').onclick = async () => {
-    if (!confirm('Delete all tasks? This cannot be undone.')) return;
-    tasks = [];
-    await storageSet(KEY_TASKS, tasks);
-    render();
-    showToast('Cleared');
+  projectInput.onkeydown = e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      focusFirstLane();
+    }
   };
 
-  function openModal(id) { $(id).classList.add('open'); }
-  function closeModal(id) { $(id).classList.remove('open'); }
+  $('btn-clear').onclick = async () => {
+    if (!confirm('Clear all tasks for today?')) return;
+    try {
+      await api('/api/tasks/clear/', { method: 'POST', body: JSON.stringify({ date: todayISO() }) });
+      tasks = [];
+      render();
+      toast('Cleared');
+    } catch (e) { toast(e.message); }
+  };
 
-  document.querySelectorAll('[data-close]').forEach(btn => {
-    btn.onclick = () => closeModal(btn.getAttribute('data-close'));
-  });
-  document.querySelectorAll('.modal-backdrop').forEach(bd => {
-    bd.addEventListener('click', (e) => {
-      if (e.target === bd) bd.classList.remove('open');
+  $('btn-braindump-parse').onclick = async () => {
+    const text = $('braindump-text').value.trim();
+    if (!text) return;
+    $('btn-braindump-parse').disabled = true;
+    try {
+      const d = await api('/braindump/', { method: 'POST', body: JSON.stringify({ text }) });
+      braindumpDrafts = (d.drafts || []).map((item, i) => ({ ...item, _key: i, selected: true }));
+      renderBraindumpDrafts();
+    } catch (e) { toast(e.message); }
+    $('btn-braindump-parse').disabled = false;
+  };
+
+  function renderBraindumpDrafts() {
+    const box = $('braindump-drafts');
+    if (!braindumpDrafts.length) {
+      box.innerHTML = '';
+      $('btn-braindump-commit').style.display = 'none';
+      return;
+    }
+    $('btn-braindump-commit').style.display = '';
+    box.innerHTML = braindumpDrafts.map(d => `
+      <label class="draft-row">
+        <input type="checkbox" data-draft-key="${d._key}" ${d.selected ? 'checked' : ''}/>
+        <span style="flex:1">${escapeHtml(d.title)}</span>
+        <span class="draft-status">${escapeHtml(d.status.replace('_', ' '))}</span>
+      </label>`).join('');
+    box.querySelectorAll('input[type=checkbox]').forEach(cb => {
+      cb.onchange = () => {
+        const d = braindumpDrafts.find(x => x._key === Number(cb.dataset.draftKey));
+        if (d) d.selected = cb.checked;
+      };
     });
-  });
+  }
+
+  $('btn-braindump-commit').onclick = async () => {
+    const selected = braindumpDrafts.filter(d => d.selected);
+    if (!selected.length) { toast('Select at least one item'); return; }
+    try {
+      const d = await api('/api/tasks/bulk/', {
+        method: 'POST',
+        body: JSON.stringify({ date: todayISO(), tasks: selected.map(({ title, status }) => ({ title, status })) }),
+      });
+      tasks = [...(d.tasks || []), ...tasks];
+      braindumpDrafts = [];
+      $('braindump-text').value = '';
+      renderBraindumpDrafts();
+      render();
+      toast(`Added ${selected.length} task${selected.length > 1 ? 's' : ''}`);
+    } catch (e) { toast(e.message); }
+  };
+
+  function openM(id) { $(id).classList.add('open'); }
+  function closeM(id) { $(id).classList.remove('open'); }
+
+  document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => closeM(b.dataset.close));
+  document.querySelectorAll('.overlay').forEach(o => o.onclick = e => { if (e.target === o) o.classList.remove('open'); });
+
+  document.onkeydown = e => {
+    if (e.key === 'Escape') document.querySelectorAll('.overlay.open').forEach(m => m.classList.remove('open'));
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); generate(); }
+  };
+
+  $('btn-theme').onclick = () => {
+    const current = document.documentElement.getAttribute('data-theme');
+    setThemePref(current === 'dark' ? 'light' : 'dark');
+    $('settings-theme').value = getThemePref();
+  };
 
   $('btn-settings').onclick = () => {
     $('settings-name').value = settings.name || '';
+    $('settings-dept').value = settings.dept || '';
     $('settings-model').value = settings.model || 'gpt-4o-mini';
     $('settings-style').value = settings.style || '';
-    openModal('modal-settings');
+    $('settings-theme').value = getThemePref();
+    $('settings-format').value = settings.format || 'PLAIN';
+    $('settings-tone').value = settings.tone || 'professional';
+    $('settings-length').value = settings.length || 'standard';
+    $('settings-timezone').value = settings.timezone || 'UTC';
+    $('settings-auto-send').checked = !!settings.auto_send_enabled;
+    $('settings-send-time').value = timeToInput(settings.auto_send_time);
+    $('settings-quiet-start').value = timeToInput(settings.quiet_hours_start);
+    $('settings-quiet-end').value = timeToInput(settings.quiet_hours_end);
+    openM('modal-settings');
   };
 
   $('btn-save-settings').onclick = async () => {
-    settings.name  = $('settings-name').value.trim();
-    settings.model = $('settings-model').value.trim() || 'gpt-4o-mini';
+    settings.name = $('settings-name').value.trim();
+    settings.dept = $('settings-dept').value.trim();
+    settings.model = $('settings-model').value || 'gpt-4o-mini';
     settings.style = $('settings-style').value.trim();
-    await storageSet(KEY_SETTINGS, settings);
-    updateKeyStatus();
-    closeModal('modal-settings');
-    showToast('Settings saved');
+    setThemePref($('settings-theme').value);
+    try {
+      settings.format = $('settings-format').value;
+      settings.tone = $('settings-tone').value;
+      settings.length = $('settings-length').value;
+      settings.timezone = $('settings-timezone').value.trim() || 'UTC';
+      settings.auto_send_enabled = $('settings-auto-send').checked;
+      await api('/api/profile/update/', {
+        method: 'POST',
+        body: JSON.stringify({
+          display_name: settings.name,
+          department: settings.dept,
+          ai_model: settings.model,
+          style_guide: settings.style,
+          default_format: settings.format,
+          default_tone: settings.tone,
+          default_length: settings.length,
+          timezone: settings.timezone,
+          auto_send_enabled: settings.auto_send_enabled,
+          auto_send_time: inputToTime($('settings-send-time').value),
+          quiet_hours_start: inputToTime($('settings-quiet-start').value),
+          quiet_hours_end: inputToTime($('settings-quiet-end').value),
+        }),
+      });
+      syncGenOptions();
+      updateUser();
+      closeM('modal-settings');
+      toast('Saved');
+    } catch (e) { toast(e.message); }
   };
 
-  function updateKeyStatus() {
-    const el = $('key-status');
-    el.textContent = 'server API mode';
-    el.className = 'key-status ok';
-  }
-
-  $('btn-generate').onclick = () => generate();
-  $('btn-regenerate').onclick = () => generate();
+  $('btn-generate')?.addEventListener('click', generate);
+  $('btn-regenerate').onclick = generate;
 
   async function generate() {
-    if (tasks.length === 0) {
-      showToast('Add some tasks first');
-      return;
-    }
-    openModal('modal-report');
-    $('report-output').innerHTML = '<span class="loader"></span>  Composing your report…';
-
+    if (!tasks.length) { toast('Add a task first'); focusFirstLane(); return; }
+    openM('modal-report');
+    const postBtn = $('btn-post-eod');
+    if (postBtn) { postBtn.style.display = ''; postBtn.textContent = 'Post EOD'; }
+    $('report-meta').textContent = `${settings.name || 'Team member'} · ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    $('report-output').innerHTML = '<div class="loading"><div class="spinner"></div>Generating…</div>';
     try {
-      const report = await callOpenAI();
-      $('report-output').textContent = report;
+      const d = await api('/api/generate-eod/', { method: 'POST', body: JSON.stringify({ model: settings.model, format: genFormat, tone: $('gen-tone').value, length: $('gen-length').value, date: todayISO() }) });
+      $('report-output').innerHTML = `<div class="report">${escapeHtml(d.report)}</div>`;
+      await loadReportHistory();
     } catch (err) {
-      console.error(err);
-      $('report-output').textContent = '⚠ Error:\n\n' + (err.message || err);
+      $('report-output').innerHTML = `<div class="report" style="color:var(--red)">${escapeHtml(err.message)}</div>`;
     }
   }
 
-  function resolveTasks() {
-    const completed = [];
-    const progress = [];
-    const blockers = [];
-    const tomorrow = [];
+  document.querySelectorAll('.format-tab').forEach(tab => {
+    tab.onclick = () => {
+      genFormat = tab.dataset.format;
+      document.querySelectorAll('.format-tab').forEach(t => t.classList.toggle('active', t === tab));
+    };
+  });
 
-    tasks.forEach(t => {
-      const clean = { text: t.text, project: t.project || null, blocker: t.blocker || null };
-      if (t.done) {
-        completed.push(clean);
-      } else if (t.blocker) {
-        blockers.push(clean);
-      } else if (t.tomorrow) {
-        tomorrow.push(clean);
-      } else {
-        progress.push(clean);
-      }
-    });
-
-    return { completed, progress, blockers, tomorrow };
-  }
-
-  async function callOpenAI() {
-    const d = new Date();
-    const dateStr = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-    const name = settings.name || 'Team member';
-    const resolved = resolveTasks();
-
-    const resp = await fetch('/api/generate-eod/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        name,
-        date: dateStr,
-        tasks: resolved,
-        style: settings.style || '',
-        model: settings.model || 'gpt-4o-mini'
-      })
-    });
-
-    const data = await resp.json();
-    if (!resp.ok) {
-      throw new Error(data.error || `HTTP ${resp.status}`);
-    }
-    if (!data.report) throw new Error('Empty response from API');
-    return data.report;
-  }
-
-  $('btn-copy').onclick = async () => {
-    const text = $('report-output').textContent;
+  $('btn-week-review').onclick = async () => {
+    $('btn-week-review').disabled = true;
+    $('week-review-out').style.display = 'block';
+    $('week-review-out').textContent = 'Generating…';
     try {
-      await navigator.clipboard.writeText(text);
-      showToast('Copied to clipboard');
-    } catch {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      ta.remove();
-      showToast('Copied to clipboard');
+      const d = await api('/api/week-review/', { method: 'POST', body: '{}' });
+      $('week-review-out').textContent = d.review;
+    } catch (e) {
+      $('week-review-out').textContent = e.message;
     }
+    $('btn-week-review').disabled = false;
   };
 
-  let toastTimer;
-  function showToast(msg) {
-    const t = $('toast');
-    t.textContent = msg;
-    t.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  $('btn-search').onclick = runSearch;
+  $('search-input').onkeydown = e => { if (e.key === 'Enter') runSearch(); };
+
+  $('btn-copy').onclick = async () => {
+    const el = $('report-output').querySelector('.report');
+    const text = el?.textContent || '';
+    try { await navigator.clipboard.writeText(text); } catch {
+      const ta = document.createElement('textarea'); ta.value = text;
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+    }
+    toast('Copied');
+  };
+
+  $('btn-post-eod').onclick = async () => {
+    $('btn-post-eod').disabled = true;
+    try {
+      await api('/api/eod/submit/', {
+        method: 'POST',
+        body: JSON.stringify({
+          model: settings.model,
+          format: genFormat,
+          tone: $('gen-tone').value,
+          length: $('gen-length').value,
+          date: todayISO(),
+        }),
+      });
+      toast('Posted as @' + accountUsername);
+      const postBtn = $('btn-post-eod');
+      if (postBtn) { postBtn.style.display = 'none'; }
+      await loadReportHistory();
+    } catch (e) {
+      toast(e.message);
+    }
+    $('btn-post-eod').disabled = false;
+  };
+
+  $('btn-notify')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setNotifyOpen(!notifyOpen);
+    if (notifyOpen) loadNotifications();
+  });
+  $('notify-mark-all')?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    await markAllNotificationsRead();
+  });
+  document.addEventListener('click', (e) => {
+    if (!notifyOpen) return;
+    const wrap = $('notify-wrap');
+    if (wrap && !wrap.contains(e.target)) setNotifyOpen(false);
+  });
+
+  let tt;
+  function toast(msg) {
+    $('toast-msg').textContent = msg;
+    $('toast').classList.add('show');
+    clearTimeout(tt);
+    tt = setTimeout(() => $('toast').classList.remove('show'), 2200);
   }
 
-  document.addEventListener('keydown', (e) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-      e.preventDefault();
-      generate();
+  (async function init() {
+    applyTheme(getThemePref(), false);
+
+    let textLevel = parseInt(localStorage.getItem(KEY_TEXT) || '3', 10);
+    if (isNaN(textLevel) || textLevel < 0) textLevel = 0;
+    if (textLevel > 4) textLevel = 4;
+    function applyTextScale(level) {
+      textLevel = Math.min(4, Math.max(0, level));
+      document.documentElement.setAttribute('data-emp-text', String(textLevel));
+      localStorage.setItem(KEY_TEXT, String(textLevel));
+      const label = $('text-scale-label');
+      const smaller = $('text-smaller');
+      const larger = $('text-larger');
+      if (label) label.textContent = TEXT_SCALES[textLevel] + '%';
+      if (smaller) smaller.disabled = textLevel <= 0;
+      if (larger) larger.disabled = textLevel >= 4;
     }
-  });
+    $('text-smaller')?.addEventListener('click', () => applyTextScale(textLevel - 1));
+    $('text-larger')?.addEventListener('click', () => applyTextScale(textLevel + 1));
+    applyTextScale(textLevel);
+
+    $('today-date').textContent = new Date().toLocaleDateString('en-US', {
+      weekday: 'long', month: 'short', day: 'numeric', year: 'numeric'
+    });
+    render();
+    try {
+      await loadProfile();
+      if (hasOversight) {
+        const navOversight = $('nav-oversight');
+        if (navOversight) navOversight.style.display = '';
+      }
+      await loadUsers();
+      await loadTasks();
+      await loadReportHistory();
+      await loadNotifications();
+      setInterval(loadNotifications, 60000);
+    } catch (e) {
+      console.error(e);
+      toast(e.message || 'Failed to load');
+    }
+  })();
 </script>
-</body>
-</html>
+{% endblock %}

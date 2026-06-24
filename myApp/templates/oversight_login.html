@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Oversight sign in — CloseOut{% endblock %}
+
+{% block body %}
+<div class="login-wrap">
+  <div class="login-card">
+    <h1>Oversight</h1>
+    <p>Sign in for managers and leadership — view team boards and posted EODs.</p>
+    {% if error %}<div class="login-error">{{ error }}</div>{% endif %}
+    <form method="post" action="{% url 'oversight_login' %}">
+      {% csrf_token %}
+      <div class="field">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" autocomplete="username" required autofocus/>
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required/>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">Sign in to oversight</button>
+    </form>
+    <p style="margin-top:20px;font-size:12px;color:var(--text-3);text-align:center">
+      Team member? <a href="{% url 'login' %}" style="color:var(--text-2)">Employee sign in</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

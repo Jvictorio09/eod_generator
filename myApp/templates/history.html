@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+{% block title %}EOD History — CloseOut{% endblock %}
+{% block extra_head %}
+<script>
+  (function () {
+    var lvl = parseInt(localStorage.getItem('closeout:emp-text') || '3', 10);
+    if (isNaN(lvl) || lvl < 0) lvl = 0;
+    if (lvl > 4) lvl = 4;
+    document.documentElement.setAttribute('data-emp-text', String(lvl));
+  })();
+</script>
+<style>
+  .history-page {
+    --s: 1.12;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 14px 20px 48px;
+    line-height: 1.5;
+  }
+  html[data-emp-text="0"] .history-page { --s: 0.92; }
+  html[data-emp-text="1"] .history-page { --s: 1.02; }
+  html[data-emp-text="2"] .history-page { --s: 1.12; }
+  html[data-emp-text="3"] .history-page { --s: 1.24; }
+  html[data-emp-text="4"] .history-page { --s: 1.38; }
+
+  .history-hero {
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .history-hero h1 {
+    font-size: calc(28px * var(--s));
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    margin: 0 0 6px;
+  }
+  .history-hero p {
+    margin: 0;
+    font-size: calc(14px * var(--s));
+    color: var(--text-2);
+    line-height: 1.55;
+  }
+  .history-hero .account {
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-size: calc(12px * var(--s));
+    color: var(--text-3);
+  }
+
+  .history-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .history-filter {
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-2);
+    font-size: calc(13px * var(--s));
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color var(--ease), color var(--ease), background var(--ease);
+  }
+  .history-filter:hover { border-color: var(--border-hover); color: var(--text); }
+  .history-filter.active {
+    border-color: var(--text);
+    background: var(--bg-elevated);
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .history-list { display: flex; flex-direction: column; gap: 10px; }
+  .history-card {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: calc(16px * var(--s)) calc(18px * var(--s));
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--text);
+    transition: border-color var(--ease), background var(--ease), box-shadow var(--ease);
+  }
+  .history-card:hover {
+    border-color: var(--border-hover);
+    background: var(--surface-hover);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  }
+  .history-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  .history-card-date {
+    font-size: calc(15px * var(--s));
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .history-card-status {
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 3px 8px;
+    border-radius: 999px;
+  }
+  .history-card-status.posted { background: var(--green-dim); color: var(--green); }
+  .history-card-status.draft { background: var(--amber-dim); color: var(--amber); }
+  .history-card-preview {
+    margin: 0;
+    font-size: calc(14px * var(--s));
+    color: var(--text-2);
+    line-height: 1.55;
+    word-break: break-word;
+  }
+  .history-card-meta {
+    margin-top: 10px;
+    font-size: calc(12px * var(--s));
+    color: var(--text-3);
+    font-family: var(--mono);
+  }
+
+  .history-empty {
+    padding: 40px 20px;
+    text-align: center;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-lg);
+    color: var(--text-2);
+    font-size: calc(14px * var(--s));
+    line-height: 1.55;
+  }
+  .history-empty strong { display: block; color: var(--text); margin-bottom: 6px; }
+
+  #modal-history-view .report {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: calc(14px * var(--s));
+    line-height: 1.6;
+    color: var(--text);
+  }
+  .nav-link.active {
+    color: var(--text);
+    background: var(--surface);
+    font-weight: 600;
+  }
+</style>
+{% endblock %}
+{% block body %}
+<nav class="nav nav-emp">
+  <div class="nav-inner">
+    <a class="logo" href="/">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+      </div>
+      CloseOut
+    </a>
+    <div class="nav-gap"></div>
+    <button class="btn btn-icon theme-toggle" id="btn-theme" type="button" aria-label="Toggle theme">
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.42"/></svg>
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+    <a class="nav-link" href="/">My log</a>
+    <a class="nav-link active" href="/history/">EOD history</a>
+    {% if is_manager %}<a class="nav-link" href="/dashboard/">Team dashboard</a>{% endif %}
+    <a class="nav-link" href="/logout/">Sign out</a>
+  </div>
+</nav>
+
+<div class="page history-page">
+  <header class="history-hero">
+    <h1>Your EOD history</h1>
+    <p>Every report you've posted — click any entry to read the full text.</p>
+    <p class="account">@{{ username }}</p>
+  </header>
+
+  <div class="history-filters" role="tablist" aria-label="Filter reports">
+    <button type="button" class="history-filter active" data-status="SUBMITTED">Posted</button>
+    <button type="button" class="history-filter" data-status="">All reports</button>
+    <button type="button" class="history-filter" data-status="DRAFT">Drafts only</button>
+  </div>
+
+  <div class="history-list" id="history-list">
+    <div class="history-empty">Loading your reports…</div>
+  </div>
+</div>
+
+<div class="overlay" id="modal-history-view">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h2 id="history-modal-title">EOD Report</h2>
+        <p id="history-modal-meta"></p>
+      </div>
+      <button class="btn btn-icon" data-close="modal-history-view" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div id="history-modal-content">
+        <div class="loading"><div class="spinner"></div>Loading…</div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" id="btn-history-copy">Copy</button>
+      <button class="btn btn-secondary" data-close="modal-history-view">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  let currentFilter = 'SUBMITTED';
+  let currentContent = '';
+
+  function escapeHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s || '';
+    return d.innerHTML;
+  }
+
+  function formatDate(iso) {
+    const d = new Date(iso + 'T12:00:00');
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function formatSubmitted(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  }
+
+  async function api(url) {
+    const r = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Request failed');
+    return d;
+  }
+
+  function openM(id) {
+    const el = $(id);
+    if (el) { el.classList.add('open'); document.body.style.overflow = 'hidden'; }
+  }
+  function closeM(id) {
+    const el = $(id);
+    if (el) { el.classList.remove('open'); document.body.style.overflow = ''; }
+  }
+
+  document.querySelectorAll('[data-close]').forEach(btn => {
+    btn.onclick = () => closeM(btn.dataset.close);
+  });
+  document.querySelectorAll('.overlay').forEach(ov => {
+    ov.onclick = e => { if (e.target === ov) closeM(ov.id); };
+  });
+
+  async function openReport(id) {
+    openM('modal-history-view');
+    $('history-modal-content').innerHTML = '<div class="loading"><div class="spinner"></div>Loading…</div>';
+    try {
+      const rep = await api('/api/reports/' + id + '/');
+      const posted = rep.status === 'SUBMITTED';
+      $('history-modal-title').textContent = formatDate(rep.date);
+      $('history-modal-meta').textContent = posted ? 'Posted' : 'Draft';
+      currentContent = rep.content || '';
+      $('history-modal-content').innerHTML = '<div class="report">' + escapeHtml(currentContent) + '</div>';
+    } catch (e) {
+      $('history-modal-content').innerHTML = '<p style="color:var(--red)">' + escapeHtml(e.message) + '</p>';
+    }
+  }
+
+  async function loadReports() {
+    const list = $('history-list');
+    list.innerHTML = '<div class="history-empty">Loading your reports…</div>';
+    try {
+      let url = '/api/reports/?limit=50';
+      if (currentFilter) url += '&status=' + encodeURIComponent(currentFilter);
+      const d = await api(url);
+      const reports = d.reports || [];
+      if (!reports.length) {
+        const msg = currentFilter === 'SUBMITTED'
+          ? 'No posted EODs yet. Add tasks on <a href="/">My log</a>, generate, then hit <strong>Post EOD</strong>.'
+          : 'No reports match this filter.';
+        list.innerHTML = '<div class="history-empty"><strong>Nothing here</strong>' + msg + '</div>';
+        return;
+      }
+      list.innerHTML = reports.map(r => {
+        const posted = r.status === 'SUBMITTED';
+        const preview = r.preview || r.excerpt || 'No preview';
+        const submitted = r.submitted_at ? formatSubmitted(r.submitted_at) : '';
+        return `<button type="button" class="history-card" data-report-id="${r.id}">
+          <div class="history-card-top">
+            <span class="history-card-date">${escapeHtml(formatDate(r.date))}</span>
+            <span class="history-card-status ${posted ? 'posted' : 'draft'}">${posted ? 'Posted' : 'Draft'}</span>
+          </div>
+          <p class="history-card-preview">${escapeHtml(preview)}</p>
+          ${submitted ? '<div class="history-card-meta">Submitted ' + escapeHtml(submitted) + '</div>' : ''}
+        </button>`;
+      }).join('');
+      list.querySelectorAll('[data-report-id]').forEach(btn => {
+        btn.onclick = () => openReport(btn.dataset.reportId);
+      });
+    } catch (e) {
+      list.innerHTML = '<div class="history-empty"><strong>Could not load</strong>' + escapeHtml(e.message) + '</div>';
+    }
+  }
+
+  document.querySelectorAll('.history-filter').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.history-filter').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFilter = btn.dataset.status;
+      loadReports();
+    };
+  });
+
+  $('btn-history-copy')?.addEventListener('click', async () => {
+    if (!currentContent) return;
+    try {
+      await navigator.clipboard.writeText(currentContent);
+      $('btn-history-copy').textContent = 'Copied!';
+      setTimeout(() => { $('btn-history-copy').textContent = 'Copy'; }, 1500);
+    } catch (e) { alert('Copy failed'); }
+  });
+
+  const params = new URLSearchParams(location.search);
+  const openId = params.get('id');
+  loadReports().then(() => {
+    if (openId) openReport(openId);
+  });
+})();
+</script>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  function getSystemTheme() {
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  }
+  function resolveTheme(pref) {
+    if (pref === 'system' || !pref) return getSystemTheme();
+    return pref === 'light' ? 'light' : 'dark';
+  }
+  function applyTheme(pref) {
+    document.documentElement.setAttribute('data-theme', resolveTheme(pref));
+  }
+  const pref = localStorage.getItem('closeout:theme') || 'system';
+  applyTheme(pref);
+  document.getElementById('btn-theme')?.addEventListener('click', () => {
+    const cur = document.documentElement.getAttribute('data-theme');
+    const next = cur === 'light' ? 'dark' : 'light';
+    localStorage.setItem('closeout:theme', next);
+    applyTheme(next);
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,1308 @@
+{% extends "base.html" %}
+{% block title %}Team oversight — CloseOut{% endblock %}
+
+{% block extra_head %}
+<script>
+  (function () {
+    var lvl = parseInt(localStorage.getItem('closeout:dash-text') || '2', 10);
+    if (isNaN(lvl) || lvl < 0) lvl = 0;
+    if (lvl > 4) lvl = 4;
+    document.documentElement.setAttribute('data-dash-text', String(lvl));
+  })();
+</script>
+<style>
+  .dash-page { --s: 1; max-width: 1440px; margin: 0 auto; padding: 12px 18px 20px; }
+  html[data-dash-text="0"] .dash-page { --s: 0.85; }
+  html[data-dash-text="1"] .dash-page { --s: 0.93; }
+  html[data-dash-text="2"] .dash-page { --s: 1; }
+  html[data-dash-text="3"] .dash-page { --s: 1.14; }
+  html[data-dash-text="4"] .dash-page { --s: 1.28; }
+
+  .text-scale-control {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    padding: 2px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .text-scale-control button {
+    width: 34px;
+    height: 34px;
+    border: none;
+    background: transparent;
+    color: var(--text-2);
+    font-size: 14px;
+    font-weight: 700;
+    border-radius: 8px;
+    cursor: pointer;
+    line-height: 1;
+    font-family: var(--font);
+  }
+  .text-scale-control button:hover:not(:disabled) {
+    background: var(--bg-elevated);
+    color: var(--text);
+  }
+  .text-scale-control button:disabled { opacity: 0.3; cursor: not-allowed; }
+  .text-scale-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-3);
+    min-width: 38px;
+    text-align: center;
+    font-family: var(--mono);
+    user-select: none;
+  }
+
+  .dash-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+    gap: 14px;
+    align-items: start;
+  }
+  @media (max-width: 1024px) {
+    .dash-layout { grid-template-columns: 1fr; }
+    .dash-assistant {
+      order: -1;
+      position: relative !important;
+      top: auto !important;
+      width: 100%;
+    }
+  }
+
+  .dash-assistant {
+    position: sticky;
+    top: 64px;
+    width: 100%;
+    max-height: calc(100dvh - 72px);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  }
+  [data-theme="dark"] .dash-assistant {
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.35);
+  }
+
+  .assist-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    background: var(--bg-elevated);
+  }
+  .assist-head-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .assist-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--violet-dim);
+    color: var(--violet);
+    flex-shrink: 0;
+  }
+  .assist-title-text {
+    font-size: calc(14px * var(--s));
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+  .assist-sub {
+    font-size: calc(10px * var(--s));
+    color: var(--text-3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+  }
+  .assist-head-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .assist-refresh {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--ease);
+  }
+  .assist-refresh:hover { border-color: var(--border-hover); color: var(--text); }
+  .assist-refresh:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .assist-quick {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    background: var(--surface);
+  }
+  .assist-quick button {
+    font-family: var(--font);
+    font-size: calc(11px * var(--s));
+    font-weight: 500;
+    padding: 5px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text-2);
+    cursor: pointer;
+    transition: all var(--ease);
+    white-space: nowrap;
+  }
+  .assist-quick button:hover {
+    border-color: var(--border-hover);
+    color: var(--text);
+    background: var(--surface-hover);
+  }
+
+  .assist-messages {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: var(--bg);
+  }
+  .assist-msg {
+    font-size: calc(14px * var(--s));
+    line-height: 1.55;
+    color: var(--text-2);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .assist-msg.assistant {
+    padding: 10px 12px;
+    border-radius: 10px 10px 10px 3px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .assist-msg.user {
+    align-self: flex-end;
+    max-width: 94%;
+    padding: 8px 11px;
+    border-radius: 10px 10px 3px 10px;
+    background: var(--accent);
+    color: var(--accent-fg);
+    font-size: calc(13px * var(--s));
+  }
+  .assist-msg.error {
+    padding: 8px 10px;
+    border-radius: var(--radius);
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    color: var(--red);
+    font-size: calc(12px * var(--s));
+  }
+  .assist-msg.loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-3);
+    font-size: calc(12px * var(--s));
+    padding: 4px 0;
+  }
+
+  .assist-compose {
+    padding: 10px 12px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .assist-input-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+  }
+  .assist-compose textarea {
+    flex: 1;
+    min-width: 0;
+    min-height: 40px;
+    max-height: 100px;
+    resize: none;
+    padding: 9px 11px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: calc(14px * var(--s));
+    line-height: 1.4;
+    outline: none;
+  }
+  .assist-compose textarea:focus { border-color: var(--border-hover); }
+  .assist-send-btn {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border: none;
+    border-radius: 10px;
+    background: var(--accent);
+    color: var(--accent-fg);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity var(--ease);
+  }
+  .assist-send-btn:hover:not(:disabled) { opacity: 0.88; }
+  .assist-send-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .dash-hero {
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .dash-hero-top {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 20px; flex-wrap: wrap; margin-bottom: 8px;
+  }
+  .dash-hero h1 {
+    font-size: calc(28px * var(--s)); font-weight: 700; letter-spacing: -0.04em; line-height: 1.15;
+  }
+  .dash-hero h1 span { color: var(--text-3); font-weight: 500; }
+  .dash-hero .lead { color: var(--text-2); font-size: calc(14px * var(--s)); margin-top: 4px; }
+  .dash-role-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: calc(11px * var(--s)); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 5px 11px; border-radius: 999px;
+    background: var(--violet-dim); color: var(--violet); border: 1px solid rgba(139, 92, 246, 0.25);
+  }
+
+  .dash-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
+  }
+  .dash-date-form {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 6px 6px 14px; border-radius: 12px;
+    border: 1px solid var(--border); background: var(--surface);
+  }
+  .dash-date-form label { font-size: calc(12px * var(--s)); font-weight: 500; color: var(--text-3); white-space: nowrap; }
+  .dash-date-form input[type=date] {
+    border: none; background: transparent; color: var(--text);
+    font-family: var(--mono); font-size: calc(13px * var(--s)); outline: none; padding: 6px 4px;
+  }
+  .dash-date-form .btn { padding: 8px 14px; border-radius: 8px; font-size: calc(13px * var(--s)); }
+
+  .dash-crumb {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    font-size: calc(13px * var(--s)); color: var(--text-3); margin-bottom: 0;
+  }
+  .dash-crumb a {
+    color: var(--text-2); text-decoration: none; padding: 4px 8px;
+    border-radius: 8px; transition: all var(--ease);
+  }
+  .dash-crumb a:hover { color: var(--text); background: var(--surface); }
+  .dash-crumb .current { color: var(--text); font-weight: 600; }
+
+  .dash-stats {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px;
+  }
+  @media (max-width: 768px) { .dash-stats { grid-template-columns: repeat(2, 1fr); } }
+  .dash-stat {
+    padding: calc(14px * var(--s)) calc(16px * var(--s)); border-radius: var(--radius-lg);
+    border: 1px solid var(--border); background: var(--surface);
+    position: relative; overflow: hidden;
+  }
+  .dash-stat::after {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--stat-accent, var(--border));
+  }
+  .dash-stat.green::after { background: var(--green); }
+  .dash-stat.amber::after { background: var(--amber); }
+  .dash-stat.violet::after { background: var(--violet); }
+  .dash-stat strong {
+    display: block; font-size: calc(26px * var(--s)); font-weight: 700; letter-spacing: -0.03em;
+    font-family: var(--mono); line-height: 1;
+  }
+  .dash-stat span { font-size: calc(12px * var(--s)); color: var(--text-3); margin-top: 5px; display: block; }
+
+  .board-grid-modern {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px;
+  }
+  .board-card-modern {
+    display: flex; flex-direction: column; gap: 12px;
+    padding: calc(16px * var(--s)); border-radius: var(--radius-lg);
+    border: 1px solid var(--border); background: var(--surface);
+    text-decoration: none; color: inherit;
+    transition: all var(--ease); position: relative;
+  }
+  .board-card-modern:hover {
+    border-color: var(--border-hover); background: var(--surface-hover);
+    transform: translateY(-2px); box-shadow: var(--toast-shadow);
+  }
+  .board-card-top { display: flex; align-items: flex-start; gap: 14px; }
+  .board-icon {
+    width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 700; color: var(--text);
+    background: var(--accent-dim);
+  }
+  .board-card-modern:nth-child(7n+1) .board-icon { background: var(--violet-dim); color: var(--violet); }
+  .board-card-modern:nth-child(7n+2) .board-icon { background: var(--green-dim); color: var(--green); }
+  .board-card-modern:nth-child(7n+3) .board-icon { background: var(--amber-dim); color: var(--amber); }
+  .board-card-modern h3 { font-size: calc(15px * var(--s)); font-weight: 600; letter-spacing: -0.02em; line-height: 1.3; }
+  .board-card-modern .board-meta { font-size: calc(12px * var(--s)); color: var(--text-3); margin-top: 3px; }
+  .board-progress { display: flex; flex-direction: column; gap: 8px; }
+  .board-progress-head {
+    display: flex; justify-content: space-between; font-size: 11px; color: var(--text-3);
+  }
+  .board-progress-head em { font-style: normal; font-weight: 600; color: var(--text-2); }
+  .board-progress-bar {
+    height: 6px; border-radius: 999px; background: var(--bg-elevated); overflow: hidden;
+  }
+  .board-progress-fill {
+    height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--green), #4ade80);
+    transition: width 0.4s ease;
+  }
+  .board-arrow {
+    position: absolute; top: 20px; right: 18px; color: var(--text-3); opacity: 0;
+    transition: all var(--ease);
+  }
+  .board-card-modern:hover .board-arrow { opacity: 1; transform: translateX(2px); }
+
+  .people-grid { display: flex; flex-direction: column; gap: 8px; }
+  .person-card {
+    display: flex; align-items: center; gap: 14px;
+    padding: calc(14px * var(--s)) calc(16px * var(--s)); border-radius: var(--radius-lg);
+    border: 1px solid var(--border); background: var(--surface);
+    text-decoration: none; color: inherit; transition: all var(--ease);
+  }
+  .person-card:hover {
+    border-color: var(--border-hover); background: var(--surface-hover);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  }
+  .person-avatar {
+    width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 16px;
+    background: var(--accent-dim); color: var(--text);
+  }
+  .person-card.is-manager .person-avatar { background: var(--violet-dim); color: var(--violet); }
+  .person-info { flex: 1; min-width: 0; }
+  .person-info .name { font-weight: 600; font-size: calc(15px * var(--s)); letter-spacing: -0.02em; }
+  .person-info .sub { font-size: calc(12px * var(--s)); color: var(--text-3); margin-top: 2px; }
+  .status-pill-lg {
+    font-size: calc(12px * var(--s)); font-weight: 600; padding: 5px 11px; border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  }
+  .status-pill-lg.posted { background: var(--green-dim); color: var(--green); }
+  .status-pill-lg.pending { background: var(--amber-dim); color: var(--amber); }
+  .status-pill-lg.not-due { background: var(--bg-elevated); color: var(--text-3); border: 1px solid var(--border); }
+  .status-pill-lg.missed { background: rgba(239, 68, 68, 0.1); color: var(--red); }
+
+  .dash-stat.muted::after { background: var(--text-3); }
+  .dash-stat.missed::after { background: var(--red); }
+
+  .dash-date-note {
+    font-size: calc(12px * var(--s));
+    color: var(--text-3);
+    margin: -6px 0 12px;
+    line-height: 1.45;
+  }
+  .dash-date-note strong { color: var(--text-2); font-weight: 600; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  .person-hero {
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    padding: 24px; border-radius: var(--radius-lg);
+    border: 1px solid var(--border); background: var(--surface);
+    margin-bottom: 16px;
+    box-shadow: var(--glow);
+  }
+  .person-hero .person-avatar { width: 56px; height: 56px; font-size: 20px; border-radius: 14px; }
+  .person-hero h2 { font-size: calc(22px * var(--s)); font-weight: 700; letter-spacing: -0.03em; }
+  .person-hero .board-label { font-size: calc(13px * var(--s)); color: var(--text-3); margin-top: 3px; }
+
+  .dash-section { margin-bottom: 16px; }
+  .dash-section-head {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+  }
+  .dash-section-head h3 {
+    font-size: 13px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--text-3);
+  }
+  .dash-section-icon {
+    width: 28px; height: 28px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg-elevated); border: 1px solid var(--border);
+  }
+  .dash-section-icon.green { color: var(--green); background: var(--green-dim); border-color: transparent; }
+  .dash-section-icon.amber { color: var(--amber); background: var(--amber-dim); border-color: transparent; }
+  .dash-section-icon.violet { color: var(--violet); background: var(--violet-dim); border-color: transparent; }
+
+  .eod-panel {
+    border-radius: var(--radius-lg); border: 1px solid var(--border);
+    background: var(--surface); overflow: hidden; margin-bottom: 16px;
+  }
+  .eod-panel-head {
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .eod-panel-head h3 { font-size: 14px; font-weight: 600; }
+  .eod-panel-body { padding: 20px; }
+  .eod-content-modern {
+    white-space: pre-wrap; font-size: calc(14px * var(--s)); line-height: 1.65; color: var(--text-2);
+    padding: calc(16px * var(--s)); border-radius: var(--radius);
+    background: var(--bg-elevated); border: 1px solid var(--border);
+  }
+
+  .task-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+  @media (max-width: 640px) { .task-columns { grid-template-columns: 1fr; } }
+  .task-panel {
+    border-radius: var(--radius-lg); border: 1px solid var(--border);
+    background: var(--surface); overflow: hidden; min-height: 120px;
+  }
+  .task-panel-head {
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+    font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px;
+  }
+  .task-panel-head .count {
+    font-family: var(--mono); font-size: 11px; color: var(--text-3);
+    background: var(--bg-elevated); padding: 2px 8px; border-radius: 999px;
+  }
+  .task-item {
+    padding: calc(11px * var(--s)) calc(16px * var(--s)); border-bottom: 1px solid var(--border);
+    font-size: calc(13px * var(--s)); line-height: 1.45;
+  }
+  .task-item:last-child { border-bottom: none; }
+  .task-item .project { color: var(--text-3); font-size: 12px; }
+  .task-item .blocker-note {
+    font-size: 11px; color: var(--amber); margin-top: 6px; padding: 6px 10px;
+    border-radius: 8px; background: var(--amber-dim);
+  }
+
+  .done-collapse {
+    border-radius: var(--radius-lg); border: 1px solid var(--border);
+    background: var(--surface); overflow: hidden;
+  }
+  .done-collapse summary {
+    padding: 16px 20px; cursor: pointer; font-weight: 600; font-size: 14px;
+    list-style: none; display: flex; align-items: center; justify-content: space-between;
+  }
+  .done-collapse summary::-webkit-details-marker { display: none; }
+  .done-collapse summary .count { font-family: var(--mono); font-size: 12px; color: var(--green); }
+
+  .dash-empty {
+    text-align: center; padding: calc(36px * var(--s)) calc(20px * var(--s)); border-radius: var(--radius-lg);
+    border: 1px dashed var(--border); background: var(--surface);
+    color: var(--text-3); font-size: calc(14px * var(--s)); line-height: 1.6;
+  }
+  .dash-empty strong { display: block; color: var(--text); font-size: calc(16px * var(--s)); margin-bottom: 6px; }
+
+  .nav-dash .logo-icon svg { width: 18px; height: 18px; }
+  .nav-dash .nav-inner { max-width: 1440px; margin: 0 auto; width: 100%; display: flex; align-items: center; gap: 10px; padding: 0 18px; }
+  .nav-dash .nav-link { font-size: calc(13px * var(--s)); }
+  .nav-link-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 999px;
+    background: var(--amber-dim); color: var(--amber);
+    font-weight: 600; font-size: calc(12px * var(--s));
+  }
+  .nav-link-pill.posted { background: var(--green-dim); color: var(--green); }
+  .manager-eod-banner {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    margin-bottom: 18px; padding: 14px 18px; border-radius: var(--radius-lg);
+    border: 1px solid var(--border); background: var(--surface);
+  }
+  .manager-eod-banner strong { font-size: calc(14px * var(--s)); }
+  .manager-eod-banner p { margin: 4px 0 0; font-size: calc(13px * var(--s)); color: var(--text-2); }
+  .boss-assign-panel {
+    margin-bottom: 18px; padding: 16px 18px; border-radius: var(--radius-lg);
+    border: 1px dashed var(--border); background: var(--bg-elevated);
+  }
+  .boss-assign-panel h4 { font-size: calc(14px * var(--s)); font-weight: 600; margin: 0 0 4px; }
+  .boss-assign-panel p { font-size: calc(12px * var(--s)); color: var(--text-3); margin: 0 0 12px; }
+  .boss-assign-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+  .boss-assign-form .field { flex: 1; min-width: 180px; }
+  .boss-assign-form label { display: block; font-size: 11px; color: var(--text-3); margin-bottom: 4px; }
+  .boss-assign-form input {
+    width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); font-size: 13px;
+  }
+  .task-badge-boss {
+    display: inline-block; font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.04em; padding: 2px 7px; border-radius: 999px;
+    background: var(--gold-dim); color: var(--gold); margin-bottom: 6px;
+  }
+  .person-card.is-self { border-color: var(--violet); box-shadow: 0 0 0 1px var(--violet-dim); }
+  .nav-link.active { color: var(--text); background: var(--surface); font-weight: 600; }
+  .archive-filters {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;
+    margin-bottom: 18px; padding: 14px 16px; border-radius: var(--radius-lg);
+    border: 1px solid var(--border); background: var(--surface);
+  }
+  .archive-filters .field { min-width: 140px; flex: 1; }
+  .archive-filters label { display: block; font-size: 11px; color: var(--text-3); margin-bottom: 4px; }
+  .archive-filters input, .archive-filters select {
+    width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg-elevated); color: var(--text); font-size: 13px; font-family: inherit;
+  }
+  .archive-list { display: flex; flex-direction: column; gap: 10px; }
+  .archive-row {
+    display: block; text-decoration: none; color: inherit;
+    padding: 14px 16px; border-radius: var(--radius-lg); border: 1px solid var(--border);
+    background: var(--surface); transition: border-color var(--ease), background var(--ease);
+  }
+  .archive-row:hover { border-color: var(--border-hover); background: var(--surface-hover); }
+  .archive-row-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+  .archive-row-top strong { font-size: calc(14px * var(--s)); font-weight: 600; }
+  .archive-row-meta { font-size: calc(12px * var(--s)); color: var(--text-3); }
+  .account-handle { font-family: var(--mono); font-size: calc(12px * var(--s)); color: var(--text-3); font-weight: 500; }
+  .archive-row-excerpt { font-size: calc(13px * var(--s)); color: var(--text-2); line-height: 1.45; margin: 0; }
+  .archive-tag {
+    font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 2px 8px; border-radius: 999px; background: var(--green-dim); color: var(--green);
+  }
+  .archive-nav-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    margin-bottom: 16px; padding: 10px 14px; border-radius: var(--radius-lg);
+    border: 1px solid var(--border); background: var(--bg-elevated);
+  }
+  .archive-back {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: calc(13px * var(--s)); font-weight: 600; color: var(--text-2);
+    text-decoration: none; padding: 6px 10px; border-radius: 8px;
+    transition: color var(--ease), background var(--ease);
+  }
+  .archive-back:hover { color: var(--text); background: var(--surface-hover); }
+  .archive-back svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .archive-step-nav { display: flex; gap: 8px; }
+  .archive-step-nav a, .archive-step-nav span {
+    font-size: calc(12px * var(--s)); padding: 6px 12px; border-radius: 8px;
+    text-decoration: none; border: 1px solid var(--border);
+  }
+  .archive-step-nav a { color: var(--text-2); background: var(--surface); }
+  .archive-step-nav a:hover { color: var(--text); border-color: var(--border-hover); }
+  .archive-step-nav span { color: var(--text-3); opacity: 0.5; }
+</style>
+{% endblock %}
+
+{% block body %}
+<nav class="nav nav-dash">
+  <div class="nav-inner">
+    <a class="logo" href="/dashboard/">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      </div>
+      Oversight
+    </a>
+    <div class="nav-gap"></div>
+    <div class="text-scale-control" role="group" aria-label="Text size">
+      <button type="button" id="text-smaller" aria-label="Decrease text size" title="Smaller text">A−</button>
+      <span class="text-scale-label" id="text-scale-label">100%</span>
+      <button type="button" id="text-larger" aria-label="Increase text size" title="Larger text">A+</button>
+    </div>
+    <button class="btn btn-icon theme-toggle" id="btn-theme" type="button" aria-label="Toggle theme">
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+    <a class="nav-link {% if view_mode != 'archive' %}active{% endif %}" href="/dashboard/">Team</a>
+    <a class="nav-link {% if view_mode == 'archive' %}active{% endif %}" href="?view=archive">EOD archive</a>
+    {% if is_manager %}
+    <a class="nav-link {% if not viewer_posted and date_relation == 'today' %}nav-link-pill{% else %}nav-link-pill posted{% endif %}" href="/">
+      {% if not viewer_posted and date_relation == 'today' %}Post my EOD{% else %}My log{% endif %}
+    </a>
+    {% endif %}
+    <a class="nav-link" href="{% url 'logout' %}">Sign out</a>
+  </div>
+</nav>
+
+<div class="dash-page">
+
+  <header class="dash-hero">
+    <div class="dash-hero-top">
+      <div>
+        {% if view_mode == "boards" %}
+        <h1>Team overview <span>— all boards</span></h1>
+        <p class="lead">See who posted today across every board. Click a board to drill into people.</p>
+        {% elif view_mode == "people" %}
+        <h1>{{ active_board.name }}</h1>
+        <p class="lead">Who posted their EOD for {{ date_display }}?</p>
+        {% elif view_mode == "person" and person %}
+        <h1>{{ person.name }} <span class="account-handle">@{{ person.username }}</span></h1>
+        <p class="lead">Posted EOD and task breakdown for {{ date_display }}</p>
+        {% elif view_mode == "archive" %}
+        <h1>EOD archive</h1>
+        <p class="lead">All submitted reports across your team — filter by person, board, or search.</p>
+        {% else %}
+        <h1>Team oversight</h1>
+        <p class="lead">{{ date_display }}</p>
+        {% endif %}
+      </div>
+      <span class="dash-role-tag">{{ role_label }}</span>
+    </div>
+  </header>
+
+  {% if view_mode != "archive" %}
+  <div class="dash-toolbar">
+    <form class="dash-date-form" method="get">
+      {% if active_board %}<input type="hidden" name="board" value="{{ active_board.id }}"/>{% endif %}
+      {% if person %}<input type="hidden" name="user" value="{{ person.user_id }}"/>{% endif %}
+      <label for="dash-date">Viewing</label>
+      <input type="date" id="dash-date" name="date" value="{{ selected_date }}" max="{{ today_date }}"/>
+      <button type="submit" class="btn btn-primary">Apply</button>
+    </form>
+    <div class="dash-crumb" style="margin:0">
+      {% if view_mode == "boards" %}
+      <span class="current">All boards</span>
+      {% elif view_mode == "people" %}
+      {% if is_boss %}<a href="?date={{ selected_date }}">All boards</a><span>›</span>{% endif %}
+      <span class="current">{{ active_board.name }}</span>
+      {% elif view_mode == "person" and person %}
+      {% if archive_back_url %}
+      <a href="{{ archive_back_url }}">EOD archive</a><span>›</span>
+      {% elif is_boss %}<a href="?date={{ selected_date }}">All boards</a><span>›</span>{% endif %}
+      {% if not archive_back_url %}
+      <a href="?date={{ selected_date }}&board={{ active_board.id }}">{{ active_board.name }}</a><span>›</span>
+      {% endif %}
+      <span class="current">{{ person.name }}</span>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <form class="archive-filters" method="get">
+    <input type="hidden" name="view" value="archive"/>
+    <div class="field" style="flex:2;min-width:200px">
+      <label for="archive-q">Search</label>
+      <input type="search" id="archive-q" name="q" value="{{ archive_q }}" placeholder="Name or report text…"/>
+    </div>
+    {% if is_boss and archive_boards %}
+    <div class="field">
+      <label for="archive-board">Board</label>
+      <select id="archive-board" name="board">
+        <option value="">All boards</option>
+        {% for b in archive_boards %}
+        <option value="{{ b.id }}" {% if archive_board_id == b.id %}selected{% endif %}>{{ b.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <div class="field">
+      <label for="archive-user">Person</label>
+      <select id="archive-user" name="user">
+        <option value="">Everyone</option>
+        {% for p in archive_people %}
+        <option value="{{ p.user_id }}" {% if archive_user_id == p.user_id %}selected{% endif %}>{{ p.name }} (@{{ p.username }}){% if is_boss %} · {{ p.board_name }}{% endif %}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field" style="max-width:120px">
+      <label for="archive-days">Period</label>
+      <select id="archive-days" name="days">
+        <option value="7" {% if archive_days == 7 %}selected{% endif %}>Last 7 days</option>
+        <option value="30" {% if archive_days == 30 %}selected{% endif %}>Last 30 days</option>
+        <option value="90" {% if archive_days == 90 %}selected{% endif %}>Last 90 days</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Filter</button>
+    {% if archive_q or archive_board_id or archive_user_id or archive_days != 30 %}
+    <a class="btn btn-secondary" href="?view=archive">Clear</a>
+    {% endif %}
+  </form>
+  {% endif %}
+
+  {% if view_mode == "archive" %}
+  <p class="dash-date-note"><strong>{{ archive_entries|length }}</strong> submitted report{{ archive_entries|length|pluralize }} in the last {{ archive_days }} days. Click any row to open the full EOD for that day.</p>
+  {% elif date_relation == "past" %}
+  <p class="dash-date-note"><strong>Past date.</strong> “Not posted” means no submitted EOD was recorded for that day. Only <em>Post EOD</em> counts — drafts do not.</p>
+  {% elif date_relation == "today" %}
+  <p class="dash-date-note"><strong>Today.</strong> “Pending” means the employee has not submitted their EOD yet for this date.</p>
+  {% endif %}
+
+  {% if view_mode != "archive" and is_manager and date_relation == "today" and not viewer_posted %}
+  <div class="manager-eod-banner">
+    <div>
+      <strong>You haven't posted today's EOD yet</strong>
+      <p>Managers post their own EOD too — your team and the boss will see it after you hit <em>Post EOD</em>.</p>
+    </div>
+    <a class="btn btn-primary" href="/">Open my log →</a>
+  </div>
+  {% elif view_mode != "archive" and is_manager and date_relation == "today" and viewer_posted %}
+  <div class="manager-eod-banner" style="border-color:var(--green-dim)">
+    <div>
+      <strong>Your EOD is posted for today</strong>
+      <p>{{ viewer_posting.label }} — visible to your team and leadership on this board.</p>
+    </div>
+    <a class="btn btn-secondary" href="/">Edit my log</a>
+  </div>
+  {% endif %}
+
+  <div class="dash-layout">
+    <div class="dash-main">
+
+  {% if view_mode == "archive" %}
+  {% if archive_entries %}
+  <div class="archive-list">
+    {% for e in archive_entries %}
+    <a class="archive-row" href="{{ e.view_url }}">
+      <div class="archive-row-top">
+        <strong>{{ e.name }} <span class="account-handle">@{{ e.username }}</span></strong>
+        <span class="archive-tag">Posted</span>
+      </div>
+      <div class="archive-row-meta">{{ e.date_display }}{% if e.board_name %} · {{ e.board_name }}{% endif %} · {{ e.role_label }}</div>
+      <p class="archive-row-excerpt">{{ e.excerpt }}</p>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="dash-empty">
+    <strong>No submitted EODs found</strong>
+    Try a longer period, clear filters, or check that team members have hit <em>Post EOD</em> (drafts are private).
+  </div>
+  {% endif %}
+
+  {% elif view_mode == "boards" %}
+  {% if summary %}
+  <div class="dash-stats">
+    <div class="dash-stat violet"><strong>{{ summary.boards }}</strong><span>Boards</span></div>
+    <div class="dash-stat"><strong>{{ summary.members }}</strong><span>Team members</span></div>
+    <div class="dash-stat green"><strong>{{ summary.posted }}</strong><span>{{ posted_label }}</span></div>
+    <div class="dash-stat {{ summary.secondary_class }}"><strong>{{ summary.secondary_count }}</strong><span>{{ summary.secondary_label }}</span></div>
+  </div>
+  {% endif %}
+
+  {% if boards %}
+  <div class="board-grid-modern">
+    {% for b in boards %}
+    <a class="board-card-modern" href="?date={{ selected_date }}&board={{ b.id }}">
+      <span class="board-arrow">→</span>
+      <div class="board-card-top">
+        <div class="board-icon">{{ b.name|slice:":1" }}</div>
+        <div>
+          <h3>{{ b.name }}</h3>
+          <p class="board-meta">{{ b.member_count }} people on this board</p>
+        </div>
+      </div>
+      <div class="board-progress">
+        <div class="board-progress-head">
+          <span>Posted today</span>
+          <em>{{ b.posted_count }} / {{ b.member_count }}</em>
+        </div>
+        <div class="board-progress-bar">
+          <div class="board-progress-fill" style="width: {{ b.posted_pct }}%"></div>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="dash-empty">
+    <strong>No boards with team members yet</strong>
+    Run <code>python manage.py ensure_department "Core Team"</code>, then assign users in <a href="/admin/">Django admin</a>.
+  </div>
+  {% endif %}
+
+  {% elif view_mode == "people" %}
+  {% if summary %}
+  <div class="dash-stats" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="dash-stat"><strong>{{ summary.total }}</strong><span>On this board</span></div>
+    <div class="dash-stat green"><strong>{{ summary.posted }}</strong><span>{{ posted_label }}</span></div>
+    <div class="dash-stat {{ summary.secondary_class }}"><strong>{{ summary.secondary_count }}</strong><span>{{ summary.secondary_label }}</span></div>
+  </div>
+  {% endif %}
+
+  {% if people %}
+  <div class="people-grid">
+    {% for p in people %}
+    <a class="person-card {% if p.role == 'MANAGER' %}is-manager{% endif %}{% if p.user_id == viewer_user_id %} is-self{% endif %}" href="?date={{ selected_date }}&board={{ active_board.id }}&user={{ p.user_id }}">
+      <div class="person-avatar">{{ p.name|slice:":1"|upper }}</div>
+      <div class="person-info">
+        <div class="name">{{ p.name }} <span class="account-handle">@{{ p.username }}</span></div>
+        <div class="sub">{{ p.role_label }}{% if p.role == 'MANAGER' %} · Board lead{% endif %}</div>
+      </div>
+      <span class="status-pill-lg {{ p.status_class }}">
+        <span class="status-dot"></span>
+        {{ p.status_label }}
+      </span>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="dash-empty">
+    <strong>No one on this board yet</strong>
+    Assign team members to {{ active_board.name }} in Django admin.
+  </div>
+  {% endif %}
+
+  {% elif view_mode == "person" and person %}
+  {% if archive_back_url %}
+  <nav class="archive-nav-bar" aria-label="Archive navigation">
+    <a class="archive-back" href="{{ archive_back_url }}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+      Back to EOD archive
+    </a>
+    <div class="archive-step-nav">
+      {% if archive_prev_url %}
+      <a href="{{ archive_prev_url }}">← Previous</a>
+      {% else %}
+      <span>← Previous</span>
+      {% endif %}
+      {% if archive_next_url %}
+      <a href="{{ archive_next_url }}">Next →</a>
+      {% else %}
+      <span>Next →</span>
+      {% endif %}
+    </div>
+  </nav>
+  {% endif %}
+  {% if person.user_id == viewer_user_id and date_relation == "today" and not person.report %}
+  <div class="manager-eod-banner">
+    <div>
+      <strong>This is your EOD page</strong>
+      <p>Fill your buckets on <em>My log</em>, generate your report, then hit <em>Post EOD</em> so your team can read it here.</p>
+    </div>
+    <a class="btn btn-primary" href="/">Post my EOD →</a>
+  </div>
+  {% endif %}
+
+  {% if is_boss and person.user_id != viewer_user_id and date_relation == "today" %}
+  <div class="boss-assign-panel" id="boss-assign-panel">
+    <h4>Assign a task</h4>
+    <p>Adds to {{ person.name }}'s daily log today — they'll get an in-app notification.</p>
+    <form class="boss-assign-form" id="boss-assign-form">
+      <div class="field" style="flex:2;min-width:220px">
+        <label for="assign-title">Task</label>
+        <input type="text" id="assign-title" name="title" placeholder="What should they work on?" required maxlength="500"/>
+      </div>
+      <div class="field">
+        <label for="assign-project">Tag (optional)</label>
+        <input type="text" id="assign-project" name="project" placeholder="e.g. Core Team" maxlength="200"/>
+      </div>
+      <button type="submit" class="btn btn-primary" id="assign-submit">Assign task</button>
+    </form>
+    <p id="assign-feedback" style="display:none;margin:10px 0 0;font-size:13px;color:var(--green)"></p>
+  </div>
+  {% endif %}
+
+  <div class="person-hero">
+    <div class="person-avatar {% if person.role == 'MANAGER' %}is-manager{% endif %}" style="{% if person.role == 'MANAGER' %}background:var(--violet-dim);color:var(--violet){% endif %}">
+      {{ person.name|slice:":1"|upper }}
+    </div>
+    <div style="flex:1">
+      <h2>{{ person.name }} <span class="account-handle">@{{ person.username }}</span></h2>
+      <p class="board-label">{{ person.role_label }} · {{ person.department }}</p>
+    </div>
+    <span class="status-pill-lg {{ person.status_class }}">
+      <span class="status-dot"></span>
+      {{ person.status_label }}
+    </span>
+  </div>
+
+  <div class="eod-panel">
+    <div class="eod-panel-head">
+      <h3>End of day report</h3>
+      {% if person.report %}<span class="status-pill-lg posted"><span class="status-dot"></span>Submitted</span>{% endif %}
+    </div>
+    <div class="eod-panel-body">
+      {% if person.report %}
+      <div class="eod-content-modern">{{ person.report.content }}</div>
+      {% else %}
+      <div class="dash-empty" style="padding:24px;border-style:solid">
+        <strong>No EOD posted</strong>
+        This person hasn't posted for {{ date_display }}. Drafts are private until they hit Post.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="task-columns">
+    <div class="task-panel">
+      <div class="task-panel-head">
+        <span class="dash-section-icon violet" style="width:24px;height:24px;border:none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </span>
+        Working on
+        <span class="count">{{ person.working_on|length }}</span>
+      </div>
+      {% if person.working_on %}
+      {% for t in person.working_on %}
+      <div class="task-item">
+        {% if t.from_boss %}<span class="task-badge-boss">From boss</span>{% endif %}
+        {{ t.title }}
+        {% if t.project %}<div class="project">{{ t.project }}</div>{% endif %}
+      </div>
+      {% endfor %}
+      {% else %}
+      <div class="dash-empty" style="border:none;padding:20px"><span>Nothing in progress</span></div>
+      {% endif %}
+    </div>
+    <div class="task-panel">
+      <div class="task-panel-head">
+        <span class="dash-section-icon amber" style="width:24px;height:24px;border:none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg>
+        </span>
+        Blocked
+        <span class="count">{{ person.blocked|length }}</span>
+      </div>
+      {% if person.blocked %}
+      {% for t in person.blocked %}
+      <div class="task-item">
+        {{ t.title }}
+        {% if t.age_label or t.blocker.note %}
+        <div class="blocker-note">
+          {% if t.age_label %}{{ t.age_label }}{% endif %}
+          {% if t.blocker.note %} — {{ t.blocker.note }}{% endif %}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+      {% else %}
+      <div class="dash-empty" style="border:none;padding:20px"><span>No blockers — nice</span></div>
+      {% endif %}
+    </div>
+  </div>
+
+  <details class="done-collapse">
+    <summary>
+      Tasks done
+      <span class="count">{{ person.done|length }} shipped</span>
+    </summary>
+    {% if person.done %}
+    {% for t in person.done %}
+    <div class="task-item">
+      {{ t.title }}
+      {% if t.project %}<div class="project">{{ t.project }}</div>{% endif %}
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="dash-empty" style="border:none;padding:16px"><span>Nothing marked done today</span></div>
+    {% endif %}
+  </details>
+  {% endif %}
+
+    </div>
+
+    <aside class="dash-assistant" id="dash-assistant" aria-label="Oversight assistant">
+      <div class="assist-head">
+        <div class="assist-head-left">
+          <span class="assist-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </span>
+          <div>
+            <div class="assist-title-text">Oversight assistant</div>
+            <div class="assist-sub">{{ date_display }}</div>
+          </div>
+        </div>
+        <div class="assist-head-actions">
+          <button type="button" class="assist-refresh" id="assist-refresh" title="Refresh summary" aria-label="Refresh summary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="assist-quick" id="assist-quick">
+        <button type="button" data-prompt="Who still needs to post their EOD today?">Who's pending?</button>
+        <button type="button" data-prompt="What blockers need my attention right now?">Blockers</button>
+        <button type="button" data-prompt="Give me a short executive summary of today.">Exec summary</button>
+      </div>
+      <div class="assist-messages" id="assist-messages">
+        <div class="assist-msg loading" id="assist-loading">
+          <div class="spinner"></div>
+          <span>Building your summary…</span>
+        </div>
+      </div>
+      <form class="assist-compose" id="assist-form">
+        <div class="assist-input-row">
+          <textarea id="assist-input" placeholder="Ask anything about today's team data…" rows="1"></textarea>
+          <button type="submit" class="assist-send-btn" id="assist-send" aria-label="Send message">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
+          </button>
+        </div>
+      </form>
+    </aside>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const KEY_THEME = 'closeout:theme';
+  const KEY_TEXT = 'closeout:dash-text';
+  const TEXT_SCALES = [85, 93, 100, 114, 128];
+  const DASH_CTX = {
+    date: "{{ selected_date }}",
+    board: {% if active_board %}{{ active_board.id }}{% else %}null{% endif %},
+    user: {% if person %}{{ person.user_id }}{% else %}null{% endif %},
+  };
+
+  function getCookie(name) {
+    if (!document.cookie) return null;
+    for (const part of document.cookie.split(';')) {
+      const [k, ...rest] = part.trim().split('=');
+      if (k === name) return decodeURIComponent(rest.join('='));
+    }
+    return null;
+  }
+
+  async function assistApi(url, body) {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken'),
+      },
+      body: JSON.stringify(body),
+    });
+    let data = {};
+    try { data = await resp.json(); } catch { /* empty */ }
+    if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+    return data;
+  }
+
+  const assistMessages = document.getElementById('assist-messages');
+  const assistInput = document.getElementById('assist-input');
+  const assistForm = document.getElementById('assist-form');
+  const assistRefresh = document.getElementById('assist-refresh');
+  const assistSend = document.getElementById('assist-send');
+  const assistLoading = document.getElementById('assist-loading');
+
+  let chatHistory = [];
+  let summaryLoaded = false;
+
+  function appendAssistMsg(role, text, extraClass) {
+    const el = document.createElement('div');
+    el.className = 'assist-msg ' + role + (extraClass ? ' ' + extraClass : '');
+    el.textContent = text;
+    assistMessages.appendChild(el);
+    assistMessages.scrollTop = assistMessages.scrollHeight;
+    return el;
+  }
+
+  function setAssistBusy(busy) {
+    assistRefresh.disabled = busy;
+    assistSend.disabled = busy;
+    assistInput.disabled = busy;
+    document.querySelectorAll('#assist-quick button').forEach(b => { b.disabled = busy; });
+  }
+
+  function contextPayload() {
+    return {
+      date: DASH_CTX.date,
+      board: DASH_CTX.board,
+      user: DASH_CTX.user,
+    };
+  }
+
+  async function loadAssistSummary() {
+    setAssistBusy(true);
+    const tempId = 'assist-loading-temp';
+    if (assistLoading) {
+      assistLoading.style.display = 'flex';
+    } else if (!document.getElementById(tempId)) {
+      const loading = document.createElement('div');
+      loading.className = 'assist-msg loading';
+      loading.innerHTML = '<div class="spinner"></div><span>Building your summary…</span>';
+      loading.id = tempId;
+      assistMessages.appendChild(loading);
+    }
+
+    try {
+      const data = await assistApi('/api/oversight/assistant/summary/', contextPayload());
+      assistLoading?.remove();
+      document.getElementById(tempId)?.remove();
+
+      if (!summaryLoaded) {
+        assistMessages.innerHTML = '';
+        summaryLoaded = true;
+      } else {
+        const first = assistMessages.querySelector('.assist-msg.assistant');
+        if (first) first.remove();
+      }
+
+      appendAssistMsg('assistant', data.summary);
+      chatHistory = [{ role: 'assistant', content: data.summary }];
+    } catch (err) {
+      assistLoading?.remove();
+      document.getElementById(tempId)?.remove();
+      if (!summaryLoaded) assistMessages.innerHTML = '';
+      appendAssistMsg('error', err.message || 'Could not load summary.');
+    }
+    setAssistBusy(false);
+  }
+
+  assistForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const message = assistInput.value.trim();
+    if (!message) return;
+
+    appendAssistMsg('user', message);
+    assistInput.value = '';
+    setAssistBusy(true);
+
+    const pending = document.createElement('div');
+    pending.className = 'assist-msg loading';
+    pending.innerHTML = '<div class="spinner"></div><span>Thinking…</span>';
+    assistMessages.appendChild(pending);
+    assistMessages.scrollTop = assistMessages.scrollHeight;
+
+    try {
+      const data = await assistApi('/api/oversight/assistant/chat/', {
+        ...contextPayload(),
+        message,
+        history: chatHistory,
+      });
+      pending.remove();
+      appendAssistMsg('assistant', data.reply);
+      chatHistory.push({ role: 'user', content: message });
+      chatHistory.push({ role: 'assistant', content: data.reply });
+      if (chatHistory.length > 14) chatHistory = chatHistory.slice(-14);
+    } catch (err) {
+      pending.remove();
+      appendAssistMsg('error', err.message || 'Something went wrong.');
+    }
+    setAssistBusy(false);
+    assistInput.focus();
+  });
+
+  assistInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      assistForm.requestSubmit();
+    }
+  });
+
+  assistRefresh?.addEventListener('click', () => {
+    chatHistory = [];
+    loadAssistSummary();
+  });
+
+  document.querySelectorAll('#assist-quick [data-prompt]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      assistInput.value = btn.dataset.prompt;
+      assistInput.focus();
+      assistForm.requestSubmit();
+    });
+  });
+
+  function autoResizeAssistInput() {
+    assistInput.style.height = 'auto';
+    assistInput.style.height = Math.min(assistInput.scrollHeight, 100) + 'px';
+  }
+  assistInput?.addEventListener('input', autoResizeAssistInput);
+
+  let textLevel = parseInt(localStorage.getItem(KEY_TEXT) || '2', 10);
+  if (isNaN(textLevel) || textLevel < 0) textLevel = 0;
+  if (textLevel > 4) textLevel = 4;
+
+  function applyTextScale(level) {
+    textLevel = Math.min(4, Math.max(0, level));
+    document.documentElement.setAttribute('data-dash-text', String(textLevel));
+    localStorage.setItem(KEY_TEXT, String(textLevel));
+    const label = document.getElementById('text-scale-label');
+    const smaller = document.getElementById('text-smaller');
+    const larger = document.getElementById('text-larger');
+    if (label) label.textContent = TEXT_SCALES[textLevel] + '%';
+    if (smaller) smaller.disabled = textLevel <= 0;
+    if (larger) larger.disabled = textLevel >= 4;
+  }
+
+  document.getElementById('text-smaller')?.addEventListener('click', () => applyTextScale(textLevel - 1));
+  document.getElementById('text-larger')?.addEventListener('click', () => applyTextScale(textLevel + 1));
+  applyTextScale(textLevel);
+
+  const assistPanel = document.getElementById('dash-assistant');
+  const STICKY_TOP = 64;
+  const VIEW_PAD = 12;
+
+  function fitAssistantPanel() {
+    if (!assistPanel) return;
+    const isMobile = window.matchMedia('(max-width: 1024px)').matches;
+    let maxH;
+    if (isMobile) {
+      maxH = Math.min(window.innerHeight * 0.5, 440);
+    } else {
+      const top = Math.max(assistPanel.getBoundingClientRect().top, STICKY_TOP);
+      maxH = window.innerHeight - top - VIEW_PAD;
+    }
+    maxH = Math.max(260, maxH);
+    assistPanel.style.height = maxH + 'px';
+    assistPanel.style.maxHeight = maxH + 'px';
+  }
+
+  fitAssistantPanel();
+  window.addEventListener('resize', fitAssistantPanel);
+  window.addEventListener('scroll', fitAssistantPanel, { passive: true });
+
+  function getSystemTheme() {
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  }
+  function resolveTheme(pref) {
+    if (pref === 'system' || !pref) return getSystemTheme();
+    return pref === 'light' ? 'light' : 'dark';
+  }
+  function applyTheme(pref) {
+    document.documentElement.setAttribute('data-theme', resolveTheme(pref));
+  }
+  function getThemePref() { return localStorage.getItem(KEY_THEME) || 'system'; }
+  document.getElementById('btn-theme')?.addEventListener('click', () => {
+    const cur = document.documentElement.getAttribute('data-theme');
+    const next = cur === 'dark' ? 'light' : 'dark';
+    localStorage.setItem(KEY_THEME, next);
+    applyTheme(next);
+  });
+
+  loadAssistSummary();
+
+  const assignForm = document.getElementById('boss-assign-form');
+  if (assignForm && DASH_CTX.user) {
+    assignForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('assign-title')?.value?.trim();
+      const project = document.getElementById('assign-project')?.value?.trim() || '';
+      const feedback = document.getElementById('assign-feedback');
+      const submitBtn = document.getElementById('assign-submit');
+      if (!title) return;
+      submitBtn.disabled = true;
+      try {
+        await assistApi('/api/oversight/assign-task/', {
+          user_id: DASH_CTX.user,
+          title,
+          project,
+          date: DASH_CTX.date,
+        });
+        if (feedback) {
+          feedback.textContent = 'Task assigned — they will see it in their log with a notification.';
+          feedback.style.display = 'block';
+        }
+        assignForm.reset();
+        setTimeout(() => window.location.reload(), 900);
+      } catch (err) {
+        if (feedback) {
+          feedback.style.color = 'var(--red)';
+          feedback.textContent = err.message || 'Could not assign task';
+          feedback.style.display = 'block';
+        }
+      }
+      submitBtn.disabled = false;
+    });
+  }
+</script>
+{% endblock %}

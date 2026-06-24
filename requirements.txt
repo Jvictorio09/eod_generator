@@ -1,0 +1,6 @@
+Django==5.1.15
+python-dotenv==1.2.2
+gunicorn==23.0.0
+psycopg2-binary==2.9.10
+dj-database-url==2.3.0
+whitenoise==6.9.0
