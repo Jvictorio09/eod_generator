@@ -2,15 +2,19 @@
 Django settings for myProject project.
 """
 
+import logging
 import os
 from pathlib import Path
 
 import dj_database_url
 from dotenv import load_dotenv
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(BASE_DIR / ".env")
+
+logger = logging.getLogger(__name__)
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
@@ -30,6 +34,9 @@ SECRET_KEY = os.getenv(
 )
 
 DEBUG = _env_bool("DEBUG", default=True)
+
+# Employee self-registration at /register/ (set false to lock down production).
+ALLOW_PUBLIC_REGISTRATION = _env_bool("ALLOW_PUBLIC_REGISTRATION", default=True)
 
 ALLOWED_HOSTS = _env_list("ALLOWED_HOSTS", "localhost,127.0.0.1,[::1]")
 
@@ -59,6 +66,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "django.middleware.gzip.GZipMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -89,14 +97,37 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "myProject.wsgi.application"
 
-# SQLite locally; PostgreSQL on Railway when DATABASE_URL is set.
-DATABASES = {
-    "default": dj_database_url.config(
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=600,
-        ssl_require=_env_bool("DATABASE_SSL", default=False),
+# Local dev: SQLite. Production: PostgreSQL via DATABASE_URL (required when DEBUG=False).
+_database_url = os.getenv("DATABASE_URL", "").strip()
+if _database_url:
+    DATABASES = {
+        "default": dj_database_url.parse(
+            _database_url,
+            conn_max_age=60,
+            conn_health_checks=True,
+            ssl_require=_env_bool("DATABASE_SSL", default=not DEBUG),
+        )
+    }
+    if not DEBUG:
+        engine = DATABASES["default"].get("ENGINE", "")
+        host = DATABASES["default"].get("HOST", "")
+        if "postgresql" not in engine:
+            raise ImproperlyConfigured(
+                f"DATABASE_URL must point to PostgreSQL in production (got {engine})."
+            )
+        logger.info("Using PostgreSQL at %s (conn_max_age=60)", host or "DATABASE_URL host")
+elif DEBUG:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
+else:
+    raise ImproperlyConfigured(
+        "DATABASE_URL is not set. On Railway, link your Postgres service to this web "
+        "service so DATABASE_URL is injected — SQLite is not used in production."
     )
-}
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -117,11 +148,22 @@ STORAGES = {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
     },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
 
+# WhiteNoise — gzip/brotli at collectstatic; long cache for fingerprinted assets.
+WHITENOISE_MAX_AGE = 31536000
+WHITENOISE_MANIFEST_STRICT = False
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "closeout",
+    }
+}
 
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "home"
@@ -133,3 +175,21 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_SSL_REDIRECT = _env_bool("SECURE_SSL_REDIRECT", default=True)
+
+# Email alerts (Gmail SMTP) — optional; in-app notifications always work.
+NOTIFY_EMAIL_ENABLED = _env_bool("NOTIFY_EMAIL_ENABLED", default=False)
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.smtp.EmailBackend"
+    if NOTIFY_EMAIL_ENABLED
+    else "django.core.mail.backends.console.EmailBackend",
+)
+EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = _env_bool("EMAIL_USE_TLS", default=True)
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "").strip()
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "").strip()
+DEFAULT_FROM_EMAIL = os.getenv(
+    "DEFAULT_FROM_EMAIL",
+    EMAIL_HOST_USER or "closeout@localhost",
+)

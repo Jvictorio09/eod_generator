@@ -228,6 +228,22 @@
     font-size: calc(12px * var(--s));
     padding: 4px 0;
   }
+  .assist-idle {
+    text-align: center;
+    padding: calc(20px * var(--s)) calc(14px * var(--s));
+    color: var(--text-3);
+    font-size: calc(12px * var(--s));
+    line-height: 1.5;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-elevated);
+  }
+  .assist-idle p { margin: 0 0 12px; }
+  .assist-idle .btn {
+    font-size: calc(12px * var(--s));
+    padding: 8px 14px;
+    border-radius: 8px;
+  }
 
   .assist-compose {
     padding: 10px 12px;
@@ -284,9 +300,9 @@
     gap: 20px; flex-wrap: wrap; margin-bottom: 8px;
   }
   .dash-hero h1 {
-    font-size: calc(28px * var(--s)); font-weight: 700; letter-spacing: -0.04em; line-height: 1.15;
+    font-size: calc(28px * var(--s)); font-weight: 600; letter-spacing: -0.03em; line-height: 1.15;
   }
-  .dash-hero h1 span { color: var(--text-3); font-weight: 500; }
+  .dash-hero h1 span { color: var(--text-2); font-weight: 500; }
   .dash-hero .lead { color: var(--text-2); font-size: calc(14px * var(--s)); margin-top: 4px; }
   .dash-role-tag {
     display: inline-flex; align-items: center; gap: 6px;
@@ -308,6 +324,11 @@
   .dash-date-form input[type=date] {
     border: none; background: transparent; color: var(--text);
     font-family: var(--mono); font-size: calc(13px * var(--s)); outline: none; padding: 6px 4px;
+    min-width: 9.5rem;
+  }
+  [data-theme="dark"] .dash-date-form input[type=date]::-webkit-calendar-picker-indicator {
+    opacity: 1;
+    filter: none;
   }
   .dash-date-form .btn { padding: 8px 14px; border-radius: 8px; font-size: calc(13px * var(--s)); }
 
@@ -464,9 +485,19 @@
   }
   .eod-panel-head {
     padding: 16px 20px; border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
   }
-  .eod-panel-head h3 { font-size: 14px; font-weight: 600; }
+  .eod-panel-head h3 { font-size: 14px; font-weight: 600; margin: 0 0 4px; }
+  .eod-panel-meta {
+    margin: 0;
+    font-size: calc(12px * var(--s));
+    color: var(--text-3);
+    line-height: 1.45;
+  }
+  .eod-panel-meta strong {
+    color: var(--text-2);
+    font-weight: 600;
+  }
   .eod-panel-body { padding: 20px; }
   .eod-content-modern {
     white-space: pre-wrap; font-size: calc(14px * var(--s)); line-height: 1.65; color: var(--text-2);
@@ -491,7 +522,23 @@
   .task-item {
     padding: calc(11px * var(--s)) calc(16px * var(--s)); border-bottom: 1px solid var(--border);
     font-size: calc(13px * var(--s)); line-height: 1.45;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
   }
+  .task-item-body { flex: 1; min-width: 0; }
+  .task-delete-btn {
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-3);
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: color var(--ease), border-color var(--ease), background var(--ease);
+  }
+  .task-delete-btn:hover { color: var(--red); border-color: rgba(239,68,68,0.35); background: rgba(239,68,68,0.1); }
   .task-item:last-child { border-bottom: none; }
   .task-item .project { color: var(--text-3); font-size: 12px; }
   .task-item .blocker-note {
@@ -509,6 +556,83 @@
   }
   .done-collapse summary::-webkit-details-marker { display: none; }
   .done-collapse summary .count { font-family: var(--mono); font-size: 12px; color: var(--green); }
+
+  .person-eod-history {
+    margin-top: 16px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    overflow: hidden;
+  }
+  .person-eod-history-head {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .person-eod-history-head h3 {
+    margin: 0;
+    font-size: calc(14px * var(--s));
+    font-weight: 600;
+  }
+  .person-eod-history-head span {
+    font-size: calc(11px * var(--s));
+    color: var(--text-3);
+  }
+  .person-eod-history-list {
+    display: flex;
+    flex-direction: column;
+  }
+  .person-eod-history-row {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+    transition: background var(--ease);
+  }
+  .person-eod-history-row:last-child { border-bottom: none; }
+  .person-eod-history-row:hover { background: var(--surface-hover); }
+  .person-eod-history-row.is-selected {
+    background: var(--violet-dim);
+    box-shadow: inset 3px 0 0 var(--violet);
+  }
+  .person-eod-history-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  .person-eod-history-top strong {
+    font-size: calc(13px * var(--s));
+    font-weight: 600;
+  }
+  .person-eod-history-meta {
+    font-size: calc(11px * var(--s));
+    color: var(--text-3);
+    font-family: var(--mono);
+  }
+  .person-eod-history-excerpt {
+    margin: 0;
+    font-size: calc(12px * var(--s));
+    color: var(--text-2);
+    line-height: 1.45;
+  }
+  .person-eod-history-progress {
+    margin-top: 6px;
+    font-size: calc(11px * var(--s));
+    color: var(--violet);
+    font-family: var(--mono);
+  }
+  .person-eod-history-empty {
+    padding: 20px 18px;
+    font-size: calc(13px * var(--s));
+    color: var(--text-3);
+    text-align: center;
+  }
 
   .dash-empty {
     text-align: center; padding: calc(36px * var(--s)) calc(20px * var(--s)); border-radius: var(--radius-lg);
@@ -540,12 +664,81 @@
   }
   .boss-assign-panel h4 { font-size: calc(14px * var(--s)); font-weight: 600; margin: 0 0 4px; }
   .boss-assign-panel p { font-size: calc(12px * var(--s)); color: var(--text-3); margin: 0 0 12px; }
-  .boss-assign-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
-  .boss-assign-form .field { flex: 1; min-width: 180px; }
-  .boss-assign-form label { display: block; font-size: 11px; color: var(--text-3); margin-bottom: 4px; }
-  .boss-assign-form input {
-    width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--border);
-    background: var(--surface); color: var(--text); font-size: 13px;
+  .boss-assign-panel .field { margin-bottom: 0; min-width: 0; }
+  .boss-assign-form { display: block; }
+  .boss-assign-grid,
+  .boss-project-add {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: end;
+  }
+  .boss-assign-grid {
+    grid-template-columns: minmax(220px, 2fr) minmax(140px, 1fr) auto;
+  }
+  .boss-assign-form label,
+  .boss-project-add label {
+    display: block;
+    font-size: 11px;
+    color: var(--text-3);
+    margin-bottom: 4px;
+    min-height: 15px;
+    line-height: 15px;
+  }
+  .boss-assign-panel input,
+  .boss-assign-panel select,
+  .boss-assign-panel .btn {
+    font-family: inherit;
+    box-sizing: border-box;
+    min-height: 37px;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .boss-assign-panel input,
+  .boss-assign-panel select {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+  }
+  .boss-assign-panel input:focus,
+  .boss-assign-panel select:focus {
+    outline: none;
+    border-color: var(--violet);
+    box-shadow: 0 0 0 2px var(--violet-dim);
+  }
+  .boss-assign-form .field-actions,
+  .boss-project-add .field-actions {
+    min-width: 0;
+    align-self: end;
+  }
+  .boss-assign-panel .field-actions .btn {
+    padding: 9px 14px;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 37px;
+  }
+  .boss-project-add {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .boss-project-add .field-actions .btn { min-width: 108px; }
+  #assign-feedback {
+    display: none;
+    margin: 10px 0 0;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  #assign-feedback.is-error { color: var(--red); }
+  #assign-feedback.is-success { color: var(--green); }
+  @media (max-width: 720px) {
+    .boss-assign-grid,
+    .boss-project-add { grid-template-columns: 1fr; }
+    .boss-assign-panel .field-actions .btn { width: 100%; }
   }
   .task-badge-boss {
     display: inline-block; font-size: 10px; font-weight: 600; text-transform: uppercase;
@@ -560,10 +753,16 @@
     border: 1px solid var(--border); background: var(--surface);
   }
   .archive-filters .field { min-width: 140px; flex: 1; }
-  .archive-filters label { display: block; font-size: 11px; color: var(--text-3); margin-bottom: 4px; }
+  .archive-filters .field-actions { flex: 0 0 auto; min-width: auto; }
+  .archive-filters label { display: block; font-size: 11px; color: var(--text-3); margin-bottom: 4px; min-height: 15px; }
   .archive-filters input, .archive-filters select {
     width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
     background: var(--bg-elevated); color: var(--text); font-size: 13px; font-family: inherit;
+    box-sizing: border-box; min-height: 37px;
+  }
+  .archive-filters .field-actions .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .archive-filters .field-actions .btn {
+    padding: 8px 14px; border-radius: 8px; font-size: 13px; min-height: 37px; box-sizing: border-box;
   }
   .archive-list { display: flex; flex-direction: column; gap: 10px; }
   .archive-row {
@@ -602,6 +801,39 @@
   .archive-step-nav a { color: var(--text-2); background: var(--surface); }
   .archive-step-nav a:hover { color: var(--text); border-color: var(--border-hover); }
   .archive-step-nav span { color: var(--text-3); opacity: 0.5; }
+
+  .notify-wrap { position: relative; }
+  .notify-bell { position: relative; }
+  .notify-badge {
+    position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px;
+    padding: 0 4px; border-radius: 999px; background: var(--amber); color: #1a1a1a;
+    font-size: 10px; font-weight: 700; line-height: 16px; text-align: center;
+  }
+  .notify-dropdown {
+    position: absolute; top: calc(100% + 8px); right: 0; width: min(320px, 90vw);
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    box-shadow: var(--modal-shadow); z-index: 200; overflow: hidden;
+  }
+  .notify-dropdown[hidden] { display: none !important; }
+  .notify-dropdown-head {
+    padding: 10px 14px; font-size: 12px; font-weight: 600; color: var(--text-2);
+    border-bottom: 1px solid var(--border); background: var(--bg-elevated);
+  }
+  .notify-dropdown-list { max-height: 280px; overflow-y: auto; }
+  .notify-item {
+    display: block; width: 100%; text-align: left; padding: 12px 14px;
+    border: none; background: transparent; color: var(--text); cursor: pointer;
+    border-bottom: 1px solid var(--border);
+  }
+  .notify-item:hover { background: var(--surface-hover); }
+  .notify-item p { margin: 0; font-size: calc(13px * var(--s)); line-height: 1.45; }
+  .notify-item time { display: block; margin-top: 4px; font-size: 11px; color: var(--text-3); }
+  .notify-empty { padding: 20px 14px; font-size: calc(13px * var(--s)); color: var(--text-3); text-align: center; }
+  .notify-mark-all {
+    display: block; width: 100%; padding: 10px; border: none; background: transparent;
+    font-size: 12px; font-weight: 500; color: var(--text-2); cursor: pointer;
+  }
+  .notify-mark-all:hover { color: var(--text); background: var(--surface-hover); }
 </style>
 {% endblock %}
 
@@ -624,10 +856,22 @@
       <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
       <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
     </button>
+    <div class="notify-wrap" id="notify-wrap">
+      <button class="btn btn-icon notify-bell" id="btn-notify" type="button" aria-label="Notifications" aria-expanded="false" aria-haspopup="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="notify-badge" id="notify-badge" style="display:none" aria-hidden="true">0</span>
+      </button>
+      <div class="notify-dropdown" id="notify-dropdown" hidden>
+        <div class="notify-dropdown-head">Notifications</div>
+        <div class="notify-dropdown-list" id="notify-list"></div>
+        <button type="button" class="notify-mark-all" id="notify-mark-all" style="display:none">Mark all read</button>
+      </div>
+    </div>
     <a class="nav-link {% if view_mode != 'archive' %}active{% endif %}" href="/dashboard/">Team</a>
+    <a class="nav-link" href="{% url 'project_progress' %}">Projects</a>
     <a class="nav-link {% if view_mode == 'archive' %}active{% endif %}" href="?view=archive">EOD archive</a>
     {% if is_manager %}
-    <a class="nav-link {% if not viewer_posted and date_relation == 'today' %}nav-link-pill{% else %}nav-link-pill posted{% endif %}" href="/">
+    <a class="nav-link {% if not viewer_posted and date_relation == 'today' %}nav-link-pill{% else %}nav-link-pill posted{% endif %}" href="{% url 'home' %}">
       {% if not viewer_posted and date_relation == 'today' %}Post my EOD{% else %}My log{% endif %}
     </a>
     {% endif %}
@@ -640,6 +884,7 @@
   <header class="dash-hero">
     <div class="dash-hero-top">
       <div>
+        <p class="greeting-accent" id="dash-greeting"></p>
         {% if view_mode == "boards" %}
         <h1>Team overview <span>— all boards</span></h1>
         <p class="lead">See who posted today across every board. Click a board to drill into people.</p>
@@ -722,10 +967,15 @@
         <option value="90" {% if archive_days == 90 %}selected{% endif %}>Last 90 days</option>
       </select>
     </div>
-    <button type="submit" class="btn btn-primary">Filter</button>
-    {% if archive_q or archive_board_id or archive_user_id or archive_days != 30 %}
-    <a class="btn btn-secondary" href="?view=archive">Clear</a>
-    {% endif %}
+    <div class="field field-actions">
+      <label aria-hidden="true">&nbsp;</label>
+      <div class="btn-row">
+        <button type="submit" class="btn btn-primary">Filter</button>
+        {% if archive_q or archive_board_id or archive_user_id or archive_days != 30 %}
+        <a class="btn btn-secondary" href="?view=archive">Clear</a>
+        {% endif %}
+      </div>
+    </div>
   </form>
   {% endif %}
 
@@ -743,7 +993,7 @@
       <strong>You haven't posted today's EOD yet</strong>
       <p>Managers post their own EOD too — your team and the boss will see it after you hit <em>Post EOD</em>.</p>
     </div>
-    <a class="btn btn-primary" href="/">Open my log →</a>
+    <a class="btn btn-primary" href="{% url 'home' %}">Open my log →</a>
   </div>
   {% elif view_mode != "archive" and is_manager and date_relation == "today" and viewer_posted %}
   <div class="manager-eod-banner" style="border-color:var(--green-dim)">
@@ -751,7 +1001,7 @@
       <strong>Your EOD is posted for today</strong>
       <p>{{ viewer_posting.label }} — visible to your team and leadership on this board.</p>
     </div>
-    <a class="btn btn-secondary" href="/">Edit my log</a>
+    <a class="btn btn-secondary" href="{% url 'home' %}">Edit my log</a>
   </div>
   {% endif %}
 
@@ -879,7 +1129,7 @@
       <strong>This is your EOD page</strong>
       <p>Fill your buckets on <em>My log</em>, generate your report, then hit <em>Post EOD</em> so your team can read it here.</p>
     </div>
-    <a class="btn btn-primary" href="/">Post my EOD →</a>
+    <a class="btn btn-primary" href="{% url 'home' %}">Post my EOD →</a>
   </div>
   {% endif %}
 
@@ -888,17 +1138,39 @@
     <h4>Assign a task</h4>
     <p>Adds to {{ person.name }}'s daily log today — they'll get an in-app notification.</p>
     <form class="boss-assign-form" id="boss-assign-form">
-      <div class="field" style="flex:2;min-width:220px">
-        <label for="assign-title">Task</label>
-        <input type="text" id="assign-title" name="title" placeholder="What should they work on?" required maxlength="500"/>
+      <div class="boss-assign-grid">
+        <div class="field">
+          <label for="assign-title">Task</label>
+          <input type="text" id="assign-title" name="title" placeholder="What should they work on?" required maxlength="500"/>
+        </div>
+        <div class="field">
+          <label for="assign-project">Project</label>
+          <select id="assign-project" name="project_id">
+            <option value="">No project</option>
+            {% for p in projects %}
+            <option value="{{ p.id }}">{{ p.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field field-actions">
+          <label aria-hidden="true">&nbsp;</label>
+          <button type="submit" class="btn btn-primary" id="assign-submit">Assign task</button>
+        </div>
       </div>
-      <div class="field">
-        <label for="assign-project">Tag (optional)</label>
-        <input type="text" id="assign-project" name="project" placeholder="e.g. Core Team" maxlength="200"/>
-      </div>
-      <button type="submit" class="btn btn-primary" id="assign-submit">Assign task</button>
     </form>
-    <p id="assign-feedback" style="display:none;margin:10px 0 0;font-size:13px;color:var(--green)"></p>
+    {% if is_boss %}
+    <div class="boss-project-add">
+      <div class="field">
+        <label for="boss-new-project">New project</label>
+        <input type="text" id="boss-new-project" placeholder="Add a new project for the team…" maxlength="200" autocomplete="off"/>
+      </div>
+      <div class="field field-actions">
+        <label aria-hidden="true">&nbsp;</label>
+        <button type="button" class="btn btn-secondary" id="boss-add-project-btn">Add project</button>
+      </div>
+    </div>
+    {% endif %}
+    <p id="assign-feedback" role="status" aria-live="polite"></p>
   </div>
   {% endif %}
 
@@ -918,12 +1190,32 @@
 
   <div class="eod-panel">
     <div class="eod-panel-head">
-      <h3>End of day report</h3>
+      <div>
+        <h3>End of day report</h3>
+        {% if person.report and person.report.submitted_display %}
+        <p class="eod-panel-meta">Submitted {{ person.report.submitted_display }}</p>
+        {% elif not person.report %}
+        <p class="eod-panel-meta">Not posted yet</p>
+        {% endif %}
+      </div>
       {% if person.report %}<span class="status-pill-lg posted"><span class="status-dot"></span>Submitted</span>{% endif %}
     </div>
     <div class="eod-panel-body">
       {% if person.report %}
       <div class="eod-content-modern">{{ person.report.content }}</div>
+      {% if person.project_progress %}
+      <div class="eod-project-progress-boss" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+        <h4 style="margin:0 0 10px;font-size:calc(13px * var(--s));font-weight:600">Project progress</h4>
+        <ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px">
+          {% for item in person.project_progress %}
+          <li style="display:flex;justify-content:space-between;gap:12px;font-size:calc(13px * var(--s))">
+            <span>{{ item.name }}</span>
+            <strong style="font-family:var(--mono);color:var(--violet)">{{ item.percent }}%</strong>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
       {% else %}
       <div class="dash-empty" style="padding:24px;border-style:solid">
         <strong>No EOD posted</strong>
@@ -945,9 +1237,14 @@
       {% if person.working_on %}
       {% for t in person.working_on %}
       <div class="task-item">
-        {% if t.from_boss %}<span class="task-badge-boss">From boss</span>{% endif %}
-        {{ t.title }}
-        {% if t.project %}<div class="project">{{ t.project }}</div>{% endif %}
+        <div class="task-item-body">
+          {% if t.from_boss %}<span class="task-badge-boss">From boss</span>{% endif %}
+          {{ t.title }}
+          {% if t.project %}<div class="project">{{ t.project }}</div>{% endif %}
+        </div>
+        {% if is_boss and t.from_boss %}
+        <button type="button" class="task-delete-btn" data-boss-delete-task="{{ t.id }}" title="Remove assigned task">Delete</button>
+        {% endif %}
       </div>
       {% endfor %}
       {% else %}
@@ -965,12 +1262,17 @@
       {% if person.blocked %}
       {% for t in person.blocked %}
       <div class="task-item">
-        {{ t.title }}
-        {% if t.age_label or t.blocker.note %}
-        <div class="blocker-note">
-          {% if t.age_label %}{{ t.age_label }}{% endif %}
-          {% if t.blocker.note %} — {{ t.blocker.note }}{% endif %}
+        <div class="task-item-body">
+          {{ t.title }}
+          {% if t.age_label or t.blocker.note %}
+          <div class="blocker-note">
+            {% if t.age_label %}{{ t.age_label }}{% endif %}
+            {% if t.blocker.note %} — {{ t.blocker.note }}{% endif %}
+          </div>
+          {% endif %}
         </div>
+        {% if is_boss and t.from_boss %}
+        <button type="button" class="task-delete-btn" data-boss-delete-task="{{ t.id }}" title="Remove assigned task">Delete</button>
         {% endif %}
       </div>
       {% endfor %}
@@ -988,14 +1290,48 @@
     {% if person.done %}
     {% for t in person.done %}
     <div class="task-item">
-      {{ t.title }}
-      {% if t.project %}<div class="project">{{ t.project }}</div>{% endif %}
+      <div class="task-item-body">
+        {{ t.title }}
+        {% if t.project %}<div class="project">{{ t.project }}</div>{% endif %}
+      </div>
+      {% if is_boss and t.from_boss %}
+      <button type="button" class="task-delete-btn" data-boss-delete-task="{{ t.id }}" title="Remove assigned task">Delete</button>
+      {% endif %}
     </div>
     {% endfor %}
     {% else %}
     <div class="dash-empty" style="border:none;padding:16px"><span>Nothing marked done today</span></div>
     {% endif %}
   </details>
+
+  {% if person.eod_history %}
+  <section class="person-eod-history" aria-label="EOD history for {{ person.name }}">
+    <div class="person-eod-history-head">
+      <h3>EOD history</h3>
+      <span>{{ person.eod_history|length }} report{{ person.eod_history|length|pluralize }}</span>
+    </div>
+    <div class="person-eod-history-list">
+      {% for h in person.eod_history %}
+      <a class="person-eod-history-row{% if h.is_selected %} is-selected{% endif %}" href="{{ h.view_url }}">
+        <div class="person-eod-history-top">
+          <strong>{{ h.date_display }}{% if h.is_archive %} <span style="color:var(--text-3);font-weight:500">(archived)</span>{% endif %}</strong>
+          {% if h.is_selected %}<span class="archive-tag">Viewing</span>{% endif %}
+        </div>
+        {% if h.submitted_display %}<div class="person-eod-history-meta">Submitted {{ h.submitted_display }}</div>{% endif %}
+        <p class="person-eod-history-excerpt">{{ h.excerpt }}</p>
+        {% if h.progress_label %}<div class="person-eod-history-progress">{{ h.progress_label }}</div>{% endif %}
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% else %}
+  <section class="person-eod-history" aria-label="EOD history for {{ person.name }}">
+    <div class="person-eod-history-head">
+      <h3>EOD history</h3>
+    </div>
+    <p class="person-eod-history-empty">No posted EODs yet for this person.</p>
+  </section>
+  {% endif %}
   {% endif %}
 
     </div>
@@ -1023,9 +1359,9 @@
         <button type="button" data-prompt="Give me a short executive summary of today.">Exec summary</button>
       </div>
       <div class="assist-messages" id="assist-messages">
-        <div class="assist-msg loading" id="assist-loading">
-          <div class="spinner"></div>
-          <span>Building your summary…</span>
+        <div class="assist-idle" id="assist-idle">
+          <p>Summary loads when you need it — dashboard stays fast.</p>
+          <button type="button" class="btn btn-secondary" id="assist-load-btn">Load AI summary</button>
         </div>
       </div>
       <form class="assist-compose" id="assist-form">
@@ -1051,7 +1387,18 @@
     date: "{{ selected_date }}",
     board: {% if active_board %}{{ active_board.id }}{% else %}null{% endif %},
     user: {% if person %}{{ person.user_id }}{% else %}null{% endif %},
+    viewerName: "{{ viewer_display_name|escapejs }}",
   };
+
+  (function () {
+    const el = document.getElementById('dash-greeting');
+    if (el && window.closeoutGreeting) {
+      el.textContent = window.closeoutGreeting({
+        name: DASH_CTX.viewerName,
+        accentOnly: true,
+      });
+    }
+  })();
 
   function getCookie(name) {
     if (!document.cookie) return null;
@@ -1061,6 +1408,116 @@
     }
     return null;
   }
+
+  async function api(url, opts = {}) {
+    const method = opts.method || 'GET';
+    const headers = { ...(opts.headers || {}) };
+    if (opts.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+    if (method !== 'GET') headers['X-CSRFToken'] = getCookie('csrftoken');
+    const resp = await fetch(url, { ...opts, method, headers, body: opts.body });
+    let data = {};
+    try { data = await resp.json(); } catch { /* empty */ }
+    if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+    return data;
+  }
+
+  let notifyOpen = false;
+  let notifyItems = [];
+
+  function formatNotifyTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const now = new Date();
+    const sameDay = d.toDateString() === now.toDateString();
+    return sameDay
+      ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+      : d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  }
+
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function setNotifyOpen(open) {
+    notifyOpen = open;
+    const dropdown = document.getElementById('notify-dropdown');
+    const btn = document.getElementById('btn-notify');
+    if (dropdown) dropdown.hidden = !open;
+    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  function renderNotifyDropdown() {
+    const list = document.getElementById('notify-list');
+    const markAll = document.getElementById('notify-mark-all');
+    const badge = document.getElementById('notify-badge');
+    if (!list) return;
+    if (!notifyItems.length) {
+      list.innerHTML = '<div class="notify-empty">No new notifications</div>';
+      if (badge) badge.style.display = 'none';
+      if (markAll) markAll.style.display = 'none';
+      return;
+    }
+    if (badge) {
+      badge.textContent = String(notifyItems.length);
+      badge.style.display = '';
+    }
+    if (markAll) markAll.style.display = '';
+    list.innerHTML = notifyItems.map(n => `
+      <button type="button" class="notify-item" data-nid="${n.id}" data-link="${escapeHtml(n.link || '')}">
+        <p>${escapeHtml(n.message)}</p>
+        <time>${escapeHtml(formatNotifyTime(n.created_at))}</time>
+      </button>
+    `).join('');
+    list.querySelectorAll('.notify-item').forEach(item => {
+      item.onclick = async () => {
+        await api('/api/notifications/read/', {
+          method: 'POST',
+          body: JSON.stringify({ ids: [parseInt(item.dataset.nid, 10)] }),
+        });
+        notifyItems = notifyItems.filter(x => x.id !== parseInt(item.dataset.nid, 10));
+        renderNotifyDropdown();
+        setNotifyOpen(false);
+        const link = item.dataset.link;
+        if (link) window.location.href = link;
+      };
+    });
+  }
+
+  async function loadNotifications() {
+    try {
+      const data = await api('/api/notifications/');
+      notifyItems = data.notifications || [];
+      renderNotifyDropdown();
+    } catch (e) { /* non-fatal */ }
+  }
+
+  async function markAllNotificationsRead() {
+    if (!notifyItems.length) return;
+    await api('/api/notifications/read/', { method: 'POST', body: '{}' });
+    notifyItems = [];
+    renderNotifyDropdown();
+  }
+
+  document.getElementById('btn-notify')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setNotifyOpen(!notifyOpen);
+    if (notifyOpen) loadNotifications();
+  });
+  document.getElementById('notify-mark-all')?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    await markAllNotificationsRead();
+  });
+  document.addEventListener('click', (e) => {
+    if (!notifyOpen) return;
+    const wrap = document.getElementById('notify-wrap');
+    if (wrap && !wrap.contains(e.target)) setNotifyOpen(false);
+  });
+  const pollNotifications = () => {
+    if (!document.hidden) loadNotifications();
+  };
+  setTimeout(pollNotifications, 5000);
+  setInterval(pollNotifications, 120000);
+  document.addEventListener('visibilitychange', pollNotifications);
 
   async function assistApi(url, body) {
     const resp = await fetch(url, {
@@ -1082,10 +1539,12 @@
   const assistForm = document.getElementById('assist-form');
   const assistRefresh = document.getElementById('assist-refresh');
   const assistSend = document.getElementById('assist-send');
-  const assistLoading = document.getElementById('assist-loading');
+  const assistIdle = document.getElementById('assist-idle');
+  const assistLoadBtn = document.getElementById('assist-load-btn');
 
   let chatHistory = [];
   let summaryLoaded = false;
+  let summaryLoading = false;
 
   function appendAssistMsg(role, text, extraClass) {
     const el = document.createElement('div');
@@ -1112,39 +1571,44 @@
   }
 
   async function loadAssistSummary() {
+    if (summaryLoading) return;
+    summaryLoading = true;
     setAssistBusy(true);
-    const tempId = 'assist-loading-temp';
-    if (assistLoading) {
-      assistLoading.style.display = 'flex';
-    } else if (!document.getElementById(tempId)) {
-      const loading = document.createElement('div');
-      loading.className = 'assist-msg loading';
-      loading.innerHTML = '<div class="spinner"></div><span>Building your summary…</span>';
-      loading.id = tempId;
-      assistMessages.appendChild(loading);
-    }
+    assistIdle?.remove();
+
+    const loading = document.createElement('div');
+    loading.className = 'assist-msg loading';
+    loading.id = 'assist-loading-temp';
+    loading.innerHTML = '<div class="spinner"></div><span>Building your summary…</span>';
+    assistMessages.appendChild(loading);
 
     try {
       const data = await assistApi('/api/oversight/assistant/summary/', contextPayload());
-      assistLoading?.remove();
-      document.getElementById(tempId)?.remove();
+      document.getElementById('assist-loading-temp')?.remove();
 
       if (!summaryLoaded) {
         assistMessages.innerHTML = '';
         summaryLoaded = true;
       } else {
-        const first = assistMessages.querySelector('.assist-msg.assistant');
-        if (first) first.remove();
+        assistMessages.querySelector('.assist-msg.assistant')?.remove();
       }
 
       appendAssistMsg('assistant', data.summary);
       chatHistory = [{ role: 'assistant', content: data.summary }];
     } catch (err) {
-      assistLoading?.remove();
-      document.getElementById(tempId)?.remove();
-      if (!summaryLoaded) assistMessages.innerHTML = '';
-      appendAssistMsg('error', err.message || 'Could not load summary.');
+      document.getElementById('assist-loading-temp')?.remove();
+      if (!summaryLoaded) {
+        assistMessages.innerHTML = '';
+        const idle = document.createElement('div');
+        idle.className = 'assist-idle';
+        idle.innerHTML = '<p>Could not load summary.</p><button type="button" class="btn btn-secondary assist-load-retry">Try again</button>';
+        assistMessages.appendChild(idle);
+        idle.querySelector('.assist-load-retry')?.addEventListener('click', () => loadAssistSummary());
+      } else {
+        appendAssistMsg('error', err.message || 'Could not load summary.');
+      }
     }
+    summaryLoading = false;
     setAssistBusy(false);
   }
 
@@ -1188,6 +1652,8 @@
       assistForm.requestSubmit();
     }
   });
+
+  assistLoadBtn?.addEventListener('click', () => loadAssistSummary());
 
   assistRefresh?.addEventListener('click', () => {
     chatHistory = [];
@@ -1262,6 +1728,7 @@
     document.documentElement.setAttribute('data-theme', resolveTheme(pref));
   }
   function getThemePref() { return localStorage.getItem(KEY_THEME) || 'system'; }
+
   document.getElementById('btn-theme')?.addEventListener('click', () => {
     const cur = document.documentElement.getAttribute('data-theme');
     const next = cur === 'dark' ? 'light' : 'dark';
@@ -1269,40 +1736,119 @@
     applyTheme(next);
   });
 
-  loadAssistSummary();
+  function showAssignFeedback(message, isError) {
+    const feedback = document.getElementById('assign-feedback');
+    if (!feedback) return;
+    feedback.textContent = message || '';
+    feedback.classList.toggle('is-error', !!isError);
+    feedback.classList.toggle('is-success', !isError && !!message);
+    feedback.style.display = message ? 'block' : 'none';
+  }
 
   const assignForm = document.getElementById('boss-assign-form');
   if (assignForm && DASH_CTX.user) {
     assignForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const title = document.getElementById('assign-title')?.value?.trim();
-      const project = document.getElementById('assign-project')?.value?.trim() || '';
-      const feedback = document.getElementById('assign-feedback');
+      const projectId = document.getElementById('assign-project')?.value || '';
       const submitBtn = document.getElementById('assign-submit');
       if (!title) return;
       submitBtn.disabled = true;
+      showAssignFeedback('');
       try {
-        await assistApi('/api/oversight/assign-task/', {
+        const body = {
           user_id: DASH_CTX.user,
           title,
-          project,
           date: DASH_CTX.date,
-        });
-        if (feedback) {
-          feedback.textContent = 'Task assigned — they will see it in their log with a notification.';
-          feedback.style.display = 'block';
-        }
+        };
+        if (projectId) body.project_id = parseInt(projectId, 10);
+        await assistApi('/api/oversight/assign-task/', body);
+        showAssignFeedback('Task assigned — they will see it in their log with a notification.', false);
         assignForm.reset();
         setTimeout(() => window.location.reload(), 900);
       } catch (err) {
-        if (feedback) {
-          feedback.style.color = 'var(--red)';
-          feedback.textContent = err.message || 'Could not assign task';
-          feedback.style.display = 'block';
-        }
+        showAssignFeedback(err.message || 'Could not assign task', true);
       }
       submitBtn.disabled = false;
     });
   }
+
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function fillProjectSelect(selectEl, projects, selectedId) {
+    if (!selectEl) return;
+    const current = selectedId || selectEl.value;
+    selectEl.innerHTML = '<option value="">No project</option>' + projects.map(p =>
+      `<option value="${p.id}"${String(p.id) === String(current) ? ' selected' : ''}>${escapeHtml(p.name)}</option>`
+    ).join('');
+  }
+
+  let addingProject = false;
+
+  async function addTeamProject(name, assignSelect) {
+    const trimmed = (name || '').trim();
+    if (!trimmed) {
+      showAssignFeedback('Enter a project name first.', true);
+      document.getElementById('boss-new-project')?.focus();
+      return;
+    }
+    if (addingProject) return;
+    addingProject = true;
+    const btn = document.getElementById('boss-add-project-btn');
+    const input = document.getElementById('boss-new-project');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Adding…';
+    }
+    showAssignFeedback('');
+    try {
+      const data = await api('/api/projects/create/', { method: 'POST', body: JSON.stringify({ name: trimmed }) });
+      if (assignSelect) {
+        const projects = [...assignSelect.options]
+          .filter(o => o.value)
+          .map(o => ({ id: parseInt(o.value, 10), name: o.textContent }));
+        if (!projects.some(p => p.id === data.project.id)) projects.push(data.project);
+        projects.sort((a, b) => a.name.localeCompare(b.name));
+        fillProjectSelect(assignSelect, projects, data.project.id);
+      }
+      if (input) input.value = '';
+      showAssignFeedback(`Added project “${data.project.name}”.`, false);
+    } catch (err) {
+      showAssignFeedback(err.message || 'Could not add project', true);
+    } finally {
+      addingProject = false;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Add project';
+      }
+    }
+  }
+
+  document.getElementById('boss-add-project-btn')?.addEventListener('click', () => {
+    const input = document.getElementById('boss-new-project');
+    addTeamProject(input?.value, document.getElementById('assign-project'));
+  });
+
+  document.getElementById('boss-new-project')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addTeamProject(e.target.value, document.getElementById('assign-project'));
+    }
+  });
+
+  document.querySelectorAll('[data-boss-delete-task]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Remove this assigned task from their log?')) return;
+      try {
+        await api(`/api/oversight/tasks/${btn.dataset.bossDeleteTask}/`, { method: 'DELETE' });
+        btn.closest('.task-item')?.remove();
+      } catch (err) {
+        alert(err.message || 'Could not delete task');
+      }
+    });
+  });
+
 </script>
 {% endblock %}

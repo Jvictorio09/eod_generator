@@ -105,6 +105,51 @@ _LENGTH_INSTRUCTIONS = {
 }
 
 
+def _task_bullet(entry):
+    text = (entry.get("text") or "").strip()
+    project = (entry.get("project") or "").strip()
+    blocker = entry.get("blocker")
+    if project:
+        line = f"- {project} — {text}"
+    else:
+        line = f"- {text}"
+    if blocker:
+        line = f"{line} ({blocker})"
+    return line
+
+
+def format_plain_eod_report(*, name, date_str, tasks_payload, project_progress=None):
+    """Build plain-text EOD directly from tasks — no AI, no invented details."""
+    sections = (
+        ("1. TASKS COMPLETED", tasks_payload.get("completed") or []),
+        ("2. IN PROGRESS", tasks_payload.get("progress") or []),
+        ("3. BLOCKERS / RISKS", tasks_payload.get("blockers") or []),
+        ("4. TOMORROW'S PRIORITIES", tasks_payload.get("tomorrow") or []),
+    )
+    lines = [f"EOD REPORT — {name} - {date_str}", ""]
+    for heading, items in sections:
+        lines.append(heading)
+        if items:
+            lines.extend(_task_bullet(item) for item in items)
+        else:
+            lines.append("- None.")
+        lines.append("")
+
+    progress = project_progress or []
+    if progress:
+        lines.append("5. PROJECT PROGRESS")
+        for item in progress:
+            pname = (item.get("name") or "Project").strip()
+            try:
+                pct = int(item.get("percent", 0))
+            except (TypeError, ValueError):
+                pct = 0
+            lines.append(f"- {pname}: {max(0, min(pct, 100))}%")
+        lines.append("")
+
+    return "\n".join(lines).strip()
+
+
 def generate_eod_report(
     *,
     name,
@@ -115,6 +160,7 @@ def generate_eod_report(
     report_format="PLAIN",
     tone="professional",
     length="standard",
+    project_progress=None,
 ):
     fmt = report_format if report_format in _FORMAT_INSTRUCTIONS else "PLAIN"
     tone_key = tone if tone in _TONE_INSTRUCTIONS else "professional"
@@ -128,7 +174,10 @@ def generate_eod_report(
 
 RULES:
 - Do NOT invent tasks that weren't provided.
-- Rewrite shorthand into clear language.
+- Use each task's "text" as the source of truth; only polish shorthand into clear language.
+- When a task includes a "project" value, name that project in the bullet (e.g. "Neuromed website — …").
+- Do NOT mention projects that are not listed on the tasks provided.
+- If PROJECT PROGRESS is provided, add a final section "5. PROJECT PROGRESS" listing each project and the employee's reported completion % exactly as given.
 - Do NOT add preamble beyond what the format requires."""
 
     style_guidance = (
@@ -142,6 +191,9 @@ FORMAT: {fmt}
 
 TASKS (resolved into sections, JSON):
 {json.dumps(tasks_payload, indent=2)}
+
+PROJECT PROGRESS (employee-reported %, JSON — include as section 5 if non-empty):
+{json.dumps(project_progress or [], indent=2)}
 
 {style_guidance}"""
 

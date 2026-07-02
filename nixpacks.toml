@@ -1,0 +1,13 @@
+# Keep Console and deploy on the same Python + deps (fixes "No module named django" in Railway shell).
+[phases.setup]
+nixPkgs = ["python311", "gcc"]
+
+[phases.install]
+cmds = [
+  "python -m venv /opt/venv",
+  "/opt/venv/bin/pip install --upgrade pip",
+  "/opt/venv/bin/pip install -r requirements.txt",
+]
+
+[variables]
+PATH = "/opt/venv/bin:$PATH"

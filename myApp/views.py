@@ -2,7 +2,10 @@ import json
 from datetime import datetime
 from urllib.parse import urlencode
 
+from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group, User
 from django.http import HttpResponseForbidden, JsonResponse
@@ -12,7 +15,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from myApp.models import Blocker, Department, EODReport, Task, UserProfile
+from myApp.models import Blocker, Department, EODReport, EODReportArchive, Task, UserProfile
 from myApp.services.ai import (
     AIError,
     generate_oversight_summary,
@@ -37,6 +40,7 @@ from myApp.services.oversight_service import (
     can_view_user_eod,
     date_context_for,
     eod_archive_entries,
+    format_oversight_summary_from_snapshot,
     is_boss,
     is_manager_role,
     manager_default_department_id,
@@ -46,15 +50,31 @@ from myApp.services.oversight_service import (
     user_has_oversight,
     viewer_profile,
 )
+from myApp.services.project_service import (
+    apply_project_fields,
+    create_project,
+    list_active_projects,
+    list_user_project_progress,
+    project_insights,
+    project_eod_insights,
+    set_user_project_progress,
+)
 from myApp.services.report_service import (
     consistency_stats,
     create_and_store_report,
+    report_content_for_display,
+    report_preview,
     search_content,
+    serialize_archive_summary,
+    serialize_history_entries,
     serialize_profile_prefs,
+    serialize_report_summary,
     submit_eod,
+    submitted_history_entries,
     week_review_payload,
     wins_archive,
 )
+from myApp.services.workspace_service import build_workspace_bootstrap
 from myApp.services.task_service import (
     attach_blocker,
     clear_blockers,
@@ -118,12 +138,27 @@ def _authenticate_login(request, username, password):
     return authenticate(request, username=match.username, password=password)
 
 
+def _registration_open():
+    return getattr(settings, "ALLOW_PUBLIC_REGISTRATION", True)
+
+
+def _registration_departments():
+    return Department.objects.order_by("name")
+
+
+def _username_available(username):
+    username = (username or "").strip()
+    if not username:
+        return False
+    return not User.objects.filter(username__iexact=username).exists()
+
+
 def _safe_employee_next(next_url):
     """Employees must not be sent to the oversight dashboard after login."""
     if not next_url:
         return None
-    path = next_url.split("?")[0]
-    if path.rstrip("/") == "/dashboard":
+    path = next_url.split("?")[0].rstrip("/") or "/"
+    if path in ("/dashboard", "/login", "/oversight/login"):
         return None
     return next_url
 
@@ -143,26 +178,16 @@ def _oversight_landing_redirect(user, next_url=None):
 @login_required
 @ensure_csrf_cookie
 def home(request):
-    profile = get_or_create_profile(request.user)
     if _is_boss_user(request.user):
         return redirect("dashboard")
+    bootstrap = build_workspace_bootstrap(request.user)
     return render(
         request,
         "index.html",
         {
-            "user_json": json.dumps({
-                "username": request.user.username,
-                "is_manager": _require_manager(request.user),
-            }),
-            "profile_json": json.dumps({
-                "display_name": profile.display_name,
-                "username": request.user.username,
-                "department": profile.department_name,
-                "department_id": profile.department_id,
-                "role": profile.role,
-                "ai_model": profile.ai_model,
-                "style_guide": profile.style_guide,
-            }),
+            "initial_profile_json": json.dumps(_profile_api_payload(request.user)),
+            "initial_projects_json": json.dumps(bootstrap["projects"]),
+            "initial_workspace_json": json.dumps(bootstrap),
         },
     )
 
@@ -180,6 +205,7 @@ def eod_history_page(request):
         {
             "display_name": profile.display_name or request.user.username,
             "username": request.user.username,
+            "is_boss": _is_boss_user(request.user),
             "is_manager": user_has_oversight(request.user),
         },
     )
@@ -187,14 +213,13 @@ def eod_history_page(request):
 
 @ensure_csrf_cookie
 def login_view(request):
-    """Employee portal — EMPLOYEE role only."""
-    if request.user.is_authenticated:
-        if _is_boss_user(request.user):
-            return redirect("oversight_login")
+    """Employee portal — EMPLOYEE role only. Root URL shows this page."""
+    if request.user.is_authenticated and not _is_boss_user(request.user):
         return _employee_landing_redirect(request.user, _safe_employee_next(request.GET.get("next")))
     error = ""
     msg = request.GET.get("msg", "")
-    if request.method == "POST":
+    logged_in_boss = request.user.is_authenticated and _is_boss_user(request.user)
+    if request.method == "POST" and not logged_in_boss:
         username = request.POST.get("username", "").strip()
         password = request.POST.get("password", "")
         user = _authenticate_login(request, username, password)
@@ -207,7 +232,103 @@ def login_view(request):
                 return _employee_landing_redirect(user, _safe_employee_next(request.GET.get("next")))
         else:
             error = "Invalid username or password."
-    return render(request, "login.html", {"error": error, "msg": msg})
+    return render(
+        request,
+        "login.html",
+        {
+            "error": error,
+            "msg": msg,
+            "logged_in_boss": logged_in_boss,
+            "registration_enabled": _registration_open() and _registration_departments().exists(),
+        },
+    )
+
+
+@ensure_csrf_cookie
+def register_view(request):
+    """Employee self-registration — EMPLOYEE role only, existing department required."""
+    if not _registration_open():
+        return redirect("login")
+
+    if request.user.is_authenticated:
+        if _is_boss_user(request.user):
+            return redirect("dashboard")
+        return redirect("home")
+
+    departments = list(_registration_departments())
+    error = ""
+    form = {
+        "username": "",
+        "display_name": "",
+        "department_id": "",
+    }
+
+    if not departments:
+        return render(
+            request,
+            "register.html",
+            {
+                "error": "No teams are open for sign-up yet. Ask your manager to set up your board.",
+                "departments": departments,
+                "form": form,
+                "disabled": True,
+            },
+        )
+
+    if request.method == "POST":
+        username = request.POST.get("username", "").strip()
+        display_name = request.POST.get("display_name", "").strip()
+        password = request.POST.get("password", "")
+        password2 = request.POST.get("password2", "")
+        department_id = request.POST.get("department_id", "").strip()
+        form.update({
+            "username": username,
+            "display_name": display_name,
+            "department_id": department_id,
+        })
+
+        if not username:
+            error = "Choose a username."
+        elif not _username_available(username):
+            error = "That username is already taken."
+        elif not department_id:
+            error = "Select your team."
+        elif password != password2:
+            error = "Passwords do not match."
+        else:
+            try:
+                department = Department.objects.get(pk=department_id)
+            except (Department.DoesNotExist, ValueError):
+                error = "Select a valid team."
+            else:
+                candidate = User(username=username)
+                try:
+                    validate_password(password, user=candidate)
+                except ValidationError as exc:
+                    error = " ".join(exc.messages)
+                else:
+                    user = User.objects.create_user(username=username, password=password)
+                    user.is_staff = False
+                    user.is_superuser = False
+                    user.save()
+                    profile = get_or_create_profile(user)
+                    profile.role = UserProfile.Role.EMPLOYEE
+                    profile.department = department
+                    profile.display_name = display_name or username
+                    profile.save()
+                    login(request, user)
+                    return _employee_landing_redirect(user)
+
+    return render(
+        request,
+        "register.html",
+        {
+            "error": error,
+            "departments": departments,
+            "form": form,
+            "disabled": False,
+        },
+    )
 
 
 @ensure_csrf_cookie
@@ -224,7 +345,7 @@ def oversight_login_view(request):
         user = _authenticate_login(request, username, password)
         if user is not None:
             if not user_has_oversight(user):
-                error = "Employee accounts sign in at the main login page (/login/)."
+                error = "Employee accounts sign in at the home page (/)."
             else:
                 login(request, user)
                 return _oversight_landing_redirect(user, request.GET.get("next"))
@@ -242,7 +363,7 @@ def logout_view(request):
 def csrf_failure(request, reason=""):
     """Re-render sign-in pages with a fresh token instead of a bare 403."""
     path = request.path.rstrip("/") or "/"
-    if path == "/login":
+    if path in ("/login", ""):
         return render(
             request,
             "login.html",
@@ -348,61 +469,27 @@ def _parse_time(value):
             return None
 
 
-def _report_preview(content, max_len=140):
-    """Short readable preview — skips EOD headers and section titles."""
-    if not content:
-        return ""
-    skip_prefixes = (
-        "EOD REPORT",
-        "1. TASKS",
-        "2. IN PROGRESS",
-        "3. BLOCKER",
-        "4. TOMORROW",
-        "5. NOTES",
-    )
-    for raw in content.splitlines():
-        line = raw.strip().lstrip("-•* ").strip()
-        if not line or line.startswith("---"):
-            continue
-        upper = line.upper()
-        if any(upper.startswith(p) for p in skip_prefixes):
-            continue
-        return line[:max_len]
-    collapsed = " ".join(content.split())
-    return collapsed[:max_len]
+def _profile_api_payload(user):
+    profile = get_or_create_profile(user)
+    data = serialize_profile_prefs(profile)
+    data["username"] = user.username
+    data["is_manager"] = user_has_oversight(user)
+    data["has_oversight"] = profile.has_oversight_access()
+    data["role"] = profile.role
+    return data
 
 
-def _serialize_report_summary(report):
-    return {
-        "id": report.id,
-        "date": report.date.isoformat(),
-        "format": report.format,
-        "tone": report.tone,
-        "length": report.length,
-        "status": report.status,
-        "author_username": report.user.username,
-        "author_name": (
-            report.user.profile.display_name
-            if getattr(report.user, "profile", None) and report.user.profile.display_name
-            else report.user.username
-        ),
-        "submitted_at": report.submitted_at.isoformat() if report.submitted_at else None,
-        "excerpt": (report.content or "")[:200],
-        "preview": _report_preview(report.content),
-        "created_at": report.created_at.isoformat(),
-    }
+@login_required
+@require_GET
+def api_workspace_bootstrap(request):
+    day = _parse_date(request.GET.get("date")) or timezone.localdate()
+    return JsonResponse(build_workspace_bootstrap(request.user, day))
 
 
 @login_required
 @require_GET
 def api_profile(request):
-    profile = get_or_create_profile(request.user)
-    data = serialize_profile_prefs(profile)
-    data["username"] = request.user.username
-    data["is_manager"] = user_has_oversight(request.user)
-    data["has_oversight"] = profile.has_oversight_access()
-    data["role"] = profile.role
-    return JsonResponse(data)
+    return JsonResponse(_profile_api_payload(request.user))
 
 
 @login_required
@@ -470,7 +557,7 @@ def api_tasks(request):
             rolled = rollover_tomorrow_tasks(request.user, day)
 
         tasks = Task.objects.filter(user=request.user, date=day).select_related(
-            "assigned_by", "assigned_by__profile"
+            "assigned_by", "assigned_by__profile", "project_ref"
         ).prefetch_related("blockers")
         stale = [
             serialize_task(t, include_stale=True)
@@ -500,9 +587,14 @@ def api_tasks(request):
         user=request.user,
         date=day,
         title=title,
-        project=(payload.get("project") or "").strip(),
         status=status,
     )
+    apply_project_fields(
+        task,
+        project_id=payload.get("project_id"),
+        project_name=payload.get("project"),
+    )
+    task.save()
     return JsonResponse({"task": serialize_task(task)}, status=201)
 
 
@@ -524,8 +616,13 @@ def api_task_detail(request, task_id):
 
     if "title" in payload:
         task.title = (payload["title"] or "").strip()
-    if "project" in payload:
-        task.project = (payload["project"] or "").strip()
+    if "project_id" in payload or "project" in payload:
+        apply_project_fields(
+            task,
+            project_id=payload.get("project_id"),
+            project_name=payload.get("project") if "project" in payload else None,
+            clear=("project_id" in payload and not payload.get("project_id") and "project" not in payload),
+        )
     if "status" in payload and payload["status"] in Task.Status.values:
         new_status = payload["status"]
         if new_status != Task.Status.BLOCKED:
@@ -624,9 +721,14 @@ def api_tasks_bulk(request):
             user=request.user,
             date=day,
             title=title,
-            project=(item.get("project") or "").strip(),
             status=status,
         )
+        apply_project_fields(
+            task,
+            project_id=item.get("project_id"),
+            project_name=item.get("project"),
+        )
+        task.save()
         created.append(serialize_task(task))
     return JsonResponse({"tasks": created}, status=201)
 
@@ -636,7 +738,10 @@ def api_tasks_bulk(request):
 def api_tasks_clear(request):
     payload = _json_body(request) or {}
     day = _parse_date(payload.get("date")) or timezone.localdate()
-    deleted, _ = Task.objects.filter(user=request.user, date=day).delete()
+    qs = Task.objects.filter(user=request.user, date=day)
+    if payload.get("keep_assigned"):
+        qs = qs.filter(assigned_by__isnull=True)
+    deleted, _ = qs.delete()
     return JsonResponse({"deleted": deleted})
 
 
@@ -695,15 +800,19 @@ def generate_eod_report_view(request):
             tone=tone,
             length=length,
             model=model,
+            project_progress=payload.get("project_progress"),
         )
     except AIError as exc:
         return JsonResponse({"error": str(exc)}, status=502)
 
+    from myApp.services.report_service import report_display_content
+
     return JsonResponse({
-        "report": report.content,
+        "report": report_display_content(report),
         "report_id": report.id,
         "format": report.format,
         "status": report.status,
+        "project_progress": report.project_progress or [],
     })
 
 
@@ -723,10 +832,12 @@ def api_eod_submit(request):
         report = submit_eod(
             request.user,
             day,
+            content=(payload.get("content") or "").strip() or None,
             report_format=report_format,
             tone=tone,
             length=length,
             model=model,
+            project_progress=payload.get("project_progress"),
         )
     except ValueError as exc:
         return JsonResponse({"error": str(exc)}, status=400)
@@ -738,6 +849,7 @@ def api_eod_submit(request):
         "report_id": report.id,
         "status": report.status,
         "submitted_at": report.submitted_at.isoformat() if report.submitted_at else None,
+        "content": report_content_for_display(report),
     })
 
 
@@ -751,6 +863,72 @@ def api_insights_consistency(request):
 @require_GET
 def api_insights_wins(request):
     return JsonResponse({"wins": wins_archive(request.user)})
+
+
+@login_required
+@require_GET
+def api_projects(request):
+    return JsonResponse({"projects": list_active_projects()})
+
+
+@login_required
+@require_POST
+def api_projects_create(request):
+    profile = viewer_profile(request.user)
+    if not is_boss(profile):
+        return HttpResponseForbidden("Only the boss can add projects.")
+    payload = _json_body(request)
+    if payload is None:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    try:
+        project = create_project(request.user, payload.get("name"))
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+    return JsonResponse({"project": {"id": project.id, "name": project.name}}, status=201)
+
+
+@login_required
+@require_GET
+def api_insights_projects(request):
+    days = 30
+    try:
+        days = int(request.GET.get("days", 30))
+    except (TypeError, ValueError):
+        days = 30
+    days = max(7, min(days, 90))
+    return JsonResponse(project_insights(request.user, days=days))
+
+
+@login_required
+@require_GET
+def api_insights_projects_eod(request):
+    days = 30
+    try:
+        days = int(request.GET.get("days", 30))
+    except (TypeError, ValueError):
+        days = 30
+    days = max(7, min(days, 90))
+    return JsonResponse(project_eod_insights(request.user, days=days))
+
+
+@login_required
+@require_http_methods(["GET", "PUT"])
+def api_project_self_progress(request):
+    if request.method == "GET":
+        return JsonResponse({"projects": list_user_project_progress(request.user)})
+
+    payload = _json_body(request)
+    if payload is None:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    try:
+        row = set_user_project_progress(
+            request.user,
+            project_id=payload.get("project_id"),
+            percent=payload.get("percent"),
+        )
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+    return JsonResponse({"project": row})
 
 
 @login_required
@@ -785,21 +963,23 @@ def api_search(request):
 def api_reports_history(request):
     limit = min(int(request.GET.get("limit", 20)), 50)
     status = (request.GET.get("status") or "").strip().upper()
-    reports = (
-        EODReport.objects.filter(user=request.user)
-        .select_related("user", "user__profile")
-        .order_by("-date", "-submitted_at")
-    )
-    if status in (EODReport.Status.SUBMITTED, EODReport.Status.DRAFT):
-        reports = reports.filter(status=status)
-    reports = reports[:limit]
+    if status == EODReport.Status.DRAFT:
+        reports = (
+            EODReport.objects.filter(user=request.user, status=EODReport.Status.DRAFT)
+            .select_related("user", "user__profile")
+            .order_by("-date", "-created_at")[:limit]
+        )
+        return JsonResponse({
+            "reports": [serialize_report_summary(r) for r in reports],
+        })
+    entries = submitted_history_entries(request.user, limit=limit)
     return JsonResponse({
-        "reports": [_serialize_report_summary(r) for r in reports],
+        "reports": serialize_history_entries(entries),
     })
 
 
 @login_required
-@require_GET
+@require_http_methods(["GET", "DELETE"])
 def api_report_detail(request, report_id):
     try:
         report = EODReport.objects.get(pk=report_id)
@@ -810,6 +990,13 @@ def api_report_detail(request, report_id):
             return JsonResponse({"error": "Not found"}, status=404)
         if report.status != EODReport.Status.SUBMITTED:
             return JsonResponse({"error": "Not found"}, status=404)
+
+    if request.method == "DELETE":
+        if report.user_id != request.user.id:
+            return JsonResponse({"error": "Not found"}, status=404)
+        report.delete()
+        return JsonResponse({"ok": True})
+
     return JsonResponse({
         "id": report.id,
         "date": report.date.isoformat(),
@@ -823,17 +1010,94 @@ def api_report_detail(request, report_id):
             else report.user.username
         ),
         "created_at": report.created_at.isoformat(),
+        "is_archive": False,
+    })
+
+
+@login_required
+@require_http_methods(["GET", "DELETE"])
+def api_report_archive_detail(request, archive_id):
+    try:
+        archive = EODReportArchive.objects.select_related("user", "user__profile").get(pk=archive_id)
+    except EODReportArchive.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
+    if archive.user_id != request.user.id:
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    if request.method == "DELETE":
+        archive.delete()
+        return JsonResponse({"ok": True})
+
+    return JsonResponse({
+        "id": f"a{archive.id}",
+        "date": archive.log_date.isoformat(),
+        "format": archive.format,
+        "content": archive.content,
+        "status": EODReport.Status.SUBMITTED,
+        "author_username": archive.user.username,
+        "author_name": (
+            archive.user.profile.display_name
+            if getattr(archive.user, "profile", None) and archive.user.profile.display_name
+            else archive.user.username
+        ),
+        "created_at": archive.archived_at.isoformat(),
+        "is_archive": True,
     })
 
 
 @login_required(login_url="/oversight/login/")
 @ensure_csrf_cookie
-def dashboard(request):
+def project_progress(request):
+    profile = get_or_create_profile(request.user)
+    if profile.role == UserProfile.Role.EMPLOYEE:
+        return redirect("home")
     if not user_has_oversight(request.user):
-        profile = get_or_create_profile(request.user)
-        if profile.role == UserProfile.Role.EMPLOYEE:
-            return redirect(reverse("login") + "?msg=Employees use the team login at /login/. Oversight is at /oversight/login/.")
-        return redirect(reverse("oversight_login") + "?error=Your account does not have oversight access. Ask an admin to set role to Manager or Boss.")
+        return redirect(
+            reverse("oversight_login")
+            + "?error=Your account does not have oversight access. Ask an admin to set role to Manager or Boss."
+        )
+
+    profile = viewer_profile(request.user)
+    today = timezone.localdate()
+    try:
+        window_days = int(request.GET.get("days", 30))
+    except (TypeError, ValueError):
+        window_days = 30
+    window_days = max(7, min(window_days, 90))
+
+    viewer_posted = EODReport.objects.filter(
+        user=request.user,
+        date=today,
+        status=EODReport.Status.SUBMITTED,
+    ).exists()
+    date_ctx = date_context_for(today)
+
+    return render(
+        request,
+        "project_progress.html",
+        {
+            "role_label": "Boss view" if is_boss(profile) else "Manager view",
+            "is_boss": is_boss(profile),
+            "is_manager": is_manager_role(profile),
+            "viewer_display_name": profile.display_name or request.user.username,
+            "viewer_posted": viewer_posted,
+            "date_relation": date_ctx["relation"],
+            "window_days": window_days,
+        },
+    )
+
+
+@login_required(login_url="/oversight/login/")
+@ensure_csrf_cookie
+def dashboard(request):
+    profile = get_or_create_profile(request.user)
+    if profile.role == UserProfile.Role.EMPLOYEE:
+        return redirect("home")
+    if not user_has_oversight(request.user):
+        return redirect(
+            reverse("oversight_login")
+            + "?error=Your account does not have oversight access. Ask an admin to set role to Manager or Boss."
+        )
 
     profile = viewer_profile(request.user)
     today = timezone.localdate()
@@ -1007,6 +1271,7 @@ def dashboard(request):
             "is_boss": is_boss(profile),
             "is_manager": is_manager_role(profile),
             "viewer_user_id": request.user.id,
+            "viewer_display_name": profile.display_name or request.user.username,
             "viewer_posted": viewer_posted,
             "viewer_posting": viewer_posting,
             "summary": summary,
@@ -1020,6 +1285,7 @@ def dashboard(request):
             "archive_back_url": archive_back_url,
             "archive_prev_url": archive_prev_url,
             "archive_next_url": archive_next_url,
+            "projects": list_active_projects(),
         },
     )
 
@@ -1073,10 +1339,12 @@ def api_oversight_assistant_summary(request):
             model=model,
             viewer_name=viewer_name,
         )
-    except AIError as exc:
-        return JsonResponse({"error": str(exc)}, status=502)
+        ai_generated = True
+    except AIError:
+        summary = format_oversight_summary_from_snapshot(snapshot, viewer_name=viewer_name)
+        ai_generated = False
 
-    return JsonResponse({"summary": summary})
+    return JsonResponse({"summary": summary, "ai_generated": ai_generated})
 
 
 @login_required(login_url="/oversight/login/")
@@ -1119,7 +1387,13 @@ def api_oversight_assistant_chat(request):
             viewer_name=viewer_name,
         )
     except AIError as exc:
-        return JsonResponse({"error": str(exc)}, status=502)
+        msg = str(exc)
+        if "quota" in msg.lower():
+            msg = (
+                "AI chat is unavailable right now (OpenAI billing/quota). "
+                "The opening summary still works from live dashboard data."
+            )
+        return JsonResponse({"error": msg}, status=502)
 
     return JsonResponse({"reply": reply})
 
@@ -1164,10 +1438,15 @@ def api_oversight_assign_task(request):
         user=assignee,
         date=day,
         title=title,
-        project=(payload.get("project") or "").strip(),
         status=status,
         assigned_by=request.user,
     )
+    apply_project_fields(
+        task,
+        project_id=payload.get("project_id"),
+        project_name=payload.get("project"),
+    )
+    task.save()
 
     assigner_profile = getattr(request.user, "profile", None)
     assigner_name = (
@@ -1182,6 +1461,26 @@ def api_oversight_assign_task(request):
         "task": serialize_task(task),
         "notification_id": notification.id,
     }, status=201)
+
+
+@login_required(login_url="/oversight/login/")
+@require_http_methods(["DELETE"])
+def api_oversight_delete_task(request, task_id):
+    """Boss removes a task they previously assigned."""
+    profile = viewer_profile(request.user)
+    if not is_boss(profile):
+        return HttpResponseForbidden("Only the boss can remove assigned tasks.")
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    if task.assigned_by_id != request.user.id:
+        return JsonResponse({"error": "You can only remove tasks you assigned."}, status=403)
+
+    task.delete()
+    return JsonResponse({"ok": True})
 
 
 @login_required

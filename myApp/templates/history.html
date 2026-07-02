@@ -73,24 +73,47 @@
   }
 
   .history-list { display: flex; flex-direction: column; gap: 10px; }
-  .history-card {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: calc(16px * var(--s)) calc(18px * var(--s));
+  .history-card-wrap {
+    display: flex;
+    align-items: stretch;
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     background: var(--surface);
-    cursor: pointer;
-    font-family: inherit;
-    color: var(--text);
+    overflow: hidden;
     transition: border-color var(--ease), background var(--ease), box-shadow var(--ease);
   }
-  .history-card:hover {
+  .history-card-wrap:hover {
     border-color: var(--border-hover);
     background: var(--surface-hover);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
   }
+  .history-card {
+    display: block;
+    flex: 1;
+    width: 100%;
+    text-align: left;
+    padding: calc(16px * var(--s)) calc(18px * var(--s));
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--text);
+  }
+  .history-delete {
+    flex-shrink: 0;
+    width: 48px;
+    border: none;
+    border-left: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color var(--ease), background var(--ease);
+  }
+  .history-delete:hover { color: var(--red); background: rgba(239,68,68,0.1); }
   .history-card-top {
     display: flex;
     align-items: flex-start;
@@ -151,12 +174,19 @@
     background: var(--surface);
     font-weight: 600;
   }
+  .btn-danger {
+    border: 1px solid rgba(239,68,68,0.35);
+    background: rgba(239,68,68,0.1);
+    color: var(--red);
+    font-weight: 600;
+  }
+  .btn-danger:hover { filter: brightness(1.05); }
 </style>
 {% endblock %}
 {% block body %}
 <nav class="nav nav-emp">
   <div class="nav-inner">
-    <a class="logo" href="/">
+    <a class="logo" href="{% url 'home' %}">
       <div class="logo-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
       </div>
@@ -167,9 +197,9 @@
       <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.42"/></svg>
       <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
     </button>
-    <a class="nav-link" href="/">My log</a>
+    <a class="nav-link" href="{% url 'home' %}">My log</a>
     <a class="nav-link active" href="/history/">EOD history</a>
-    {% if is_manager %}<a class="nav-link" href="/dashboard/">Team dashboard</a>{% endif %}
+    {% if is_boss %}<a class="nav-link" href="/dashboard/">Team dashboard</a>{% endif %}
     <a class="nav-link" href="/logout/">Sign out</a>
   </div>
 </nav>
@@ -209,6 +239,7 @@
       </div>
     </div>
     <div class="modal-foot">
+      <button class="btn btn-danger" id="btn-history-delete" type="button">Delete</button>
       <button class="btn btn-secondary" id="btn-history-copy">Copy</button>
       <button class="btn btn-secondary" data-close="modal-history-view">Close</button>
     </div>
@@ -220,6 +251,15 @@
   const $ = id => document.getElementById(id);
   let currentFilter = 'SUBMITTED';
   let currentContent = '';
+  let currentReportId = null;
+
+  async function deleteReport(id) {
+    const sid = String(id);
+    const url = sid.startsWith('a')
+      ? `/api/reports/archive/${sid.slice(1)}/`
+      : `/api/reports/${sid}/`;
+    await api(url, { method: 'DELETE' });
+  }
 
   function escapeHtml(s) {
     const d = document.createElement('div');
@@ -238,11 +278,26 @@
     return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   }
 
-  async function api(url) {
-    const r = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+  async function api(url, opts = {}) {
+    const method = opts.method || 'GET';
+    const headers = { Accept: 'application/json', ...(opts.headers || {}) };
+    if (method !== 'GET') {
+      const csrf = getCookie('csrftoken');
+      if (csrf) headers['X-CSRFToken'] = csrf;
+    }
+    const r = await fetch(url, { credentials: 'same-origin', method, headers, body: opts.body });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || 'Request failed');
     return d;
+  }
+
+  function getCookie(name) {
+    if (!document.cookie) return null;
+    for (const part of document.cookie.split(';')) {
+      const [k, ...rest] = part.trim().split('=');
+      if (k === name) return decodeURIComponent(rest.join('='));
+    }
+    return null;
   }
 
   function openM(id) {
@@ -262,10 +317,15 @@
   });
 
   async function openReport(id) {
+    currentReportId = id;
     openM('modal-history-view');
     $('history-modal-content').innerHTML = '<div class="loading"><div class="spinner"></div>Loading…</div>';
     try {
-      const rep = await api('/api/reports/' + id + '/');
+      const sid = String(id);
+      const url = sid.startsWith('a')
+        ? `/api/reports/archive/${sid.slice(1)}/`
+        : `/api/reports/${sid}/`;
+      const rep = await api(url);
       const posted = rep.status === 'SUBMITTED';
       $('history-modal-title').textContent = formatDate(rep.date);
       $('history-modal-meta').textContent = posted ? 'Posted' : 'Draft';
@@ -286,7 +346,7 @@
       const reports = d.reports || [];
       if (!reports.length) {
         const msg = currentFilter === 'SUBMITTED'
-          ? 'No posted EODs yet. Add tasks on <a href="/">My log</a>, generate, then hit <strong>Post EOD</strong>.'
+          ? 'No posted EODs yet. Add tasks on <a href="/workspace/">My log</a>, generate, then hit <strong>Post EOD</strong>.'
           : 'No reports match this filter.';
         list.innerHTML = '<div class="history-empty"><strong>Nothing here</strong>' + msg + '</div>';
         return;
@@ -295,17 +355,36 @@
         const posted = r.status === 'SUBMITTED';
         const preview = r.preview || r.excerpt || 'No preview';
         const submitted = r.submitted_at ? formatSubmitted(r.submitted_at) : '';
-        return `<button type="button" class="history-card" data-report-id="${r.id}">
-          <div class="history-card-top">
-            <span class="history-card-date">${escapeHtml(formatDate(r.date))}</span>
-            <span class="history-card-status ${posted ? 'posted' : 'draft'}">${posted ? 'Posted' : 'Draft'}</span>
-          </div>
-          <p class="history-card-preview">${escapeHtml(preview)}</p>
-          ${submitted ? '<div class="history-card-meta">Submitted ' + escapeHtml(submitted) + '</div>' : ''}
-        </button>`;
+        return `<div class="history-card-wrap">
+          <button type="button" class="history-card" data-report-id="${r.id}">
+            <div class="history-card-top">
+              <span class="history-card-date">${escapeHtml(formatDate(r.date))}</span>
+              <span class="history-card-status ${posted ? 'posted' : 'draft'}">${posted ? 'Posted' : 'Draft'}</span>
+            </div>
+            <p class="history-card-preview">${escapeHtml(preview)}</p>
+            ${submitted ? '<div class="history-card-meta">Submitted ' + escapeHtml(submitted) + '</div>' : ''}
+          </button>
+          <button type="button" class="history-delete" data-delete-report="${r.id}" title="Delete" aria-label="Delete EOD">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        </div>`;
       }).join('');
       list.querySelectorAll('[data-report-id]').forEach(btn => {
         btn.onclick = () => openReport(btn.dataset.reportId);
+      });
+      list.querySelectorAll('[data-delete-report]').forEach(btn => {
+        btn.onclick = async (e) => {
+          e.stopPropagation();
+          if (!confirm('Delete this EOD from your history? This cannot be undone.')) return;
+          try {
+            await deleteReport(btn.dataset.deleteReport);
+            if (String(currentReportId) === String(btn.dataset.deleteReport)) {
+              closeM('modal-history-view');
+              currentReportId = null;
+            }
+            loadReports();
+          } catch (err) { alert(err.message); }
+        };
       });
     } catch (e) {
       list.innerHTML = '<div class="history-empty"><strong>Could not load</strong>' + escapeHtml(e.message) + '</div>';
@@ -328,6 +407,17 @@
       $('btn-history-copy').textContent = 'Copied!';
       setTimeout(() => { $('btn-history-copy').textContent = 'Copy'; }, 1500);
     } catch (e) { alert('Copy failed'); }
+  });
+
+  $('btn-history-delete')?.addEventListener('click', async () => {
+    if (!currentReportId) return;
+    if (!confirm('Delete this EOD from your history? This cannot be undone.')) return;
+    try {
+      await deleteReport(currentReportId);
+      closeM('modal-history-view');
+      currentReportId = null;
+      loadReports();
+    } catch (e) { alert(e.message); }
   });
 
   const params = new URLSearchParams(location.search);

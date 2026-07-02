@@ -32,6 +32,7 @@ def rollover_tomorrow_tasks(user, today=None):
             defaults={
                 "title": old.title,
                 "project": old.project,
+                "project_ref": old.project_ref,
                 "status": Task.Status.IN_PROGRESS,
             },
         )
@@ -106,6 +107,7 @@ def serialize_task(task, *, include_stale=False):
         "id": task.id,
         "title": task.title,
         "project": task.project,
+        "project_id": task.project_ref_id,
         "status": task.status,
         "date": task.date.isoformat(),
         "blocker": serialize_blocker(blocker),
@@ -125,14 +127,21 @@ def serialize_task(task, *, include_stale=False):
 
 def tasks_for_report(user, date=None):
     date = date or timezone.localdate()
-    qs = Task.objects.filter(user=user, date=date).prefetch_related("blockers")
+    qs = (
+        Task.objects.filter(user=user, date=date)
+        .select_related("project_ref")
+        .prefetch_related("blockers")
+    )
     completed, progress, blockers, tomorrow = [], [], [], []
 
     for task in qs:
         blocker = active_blocker(task)
+        project_name = task.project or (
+            task.project_ref.name if task.project_ref_id else ""
+        )
         entry = {
             "text": task.title,
-            "project": task.project or None,
+            "project": project_name or None,
             "blocker": None,
         }
         if blocker:

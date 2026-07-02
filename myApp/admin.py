@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 
-from .models import Blocker, Department, EODReport, Task, TaskNotification, UserProfile
+from .models import Blocker, Department, EODReport, EODReportArchive, Project, Task, TaskNotification, UserProfile
 
 
 class UserProfileInline(admin.StackedInline):
@@ -23,6 +23,7 @@ class UserProfileInline(admin.StackedInline):
         "auto_send_time",
         "quiet_hours_start",
         "quiet_hours_end",
+        "notify_email",
     )
 
 
@@ -48,6 +49,14 @@ admin.site.unregister(User)
 admin.site.register(User, UserAdmin)
 
 
+@admin.register(Project)
+class ProjectAdmin(admin.ModelAdmin):
+    list_display = ("name", "is_active", "created_by", "created_at")
+    list_filter = ("is_active",)
+    search_fields = ("name",)
+    raw_id_fields = ("created_by",)
+
+
 @admin.register(Department)
 class DepartmentAdmin(admin.ModelAdmin):
     list_display = ("name", "member_count")
@@ -60,10 +69,10 @@ class DepartmentAdmin(admin.ModelAdmin):
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
-    list_display = ("title", "user", "date", "status", "assigned_by", "project", "updated_at")
+    list_display = ("title", "user", "date", "status", "assigned_by", "project_ref", "project", "updated_at")
     list_filter = ("status", "date")
-    search_fields = ("title", "user__username", "project")
-    raw_id_fields = ("user", "rolled_from", "assigned_by")
+    search_fields = ("title", "user__username", "project", "project_ref__name")
+    raw_id_fields = ("user", "rolled_from", "assigned_by", "project_ref")
 
 
 @admin.register(TaskNotification)
@@ -71,7 +80,7 @@ class TaskNotificationAdmin(admin.ModelAdmin):
     list_display = ("recipient", "kind", "message", "read_at", "created_at")
     list_filter = ("kind", "read_at")
     search_fields = ("message", "recipient__username")
-    raw_id_fields = ("recipient", "task")
+    raw_id_fields = ("recipient", "task", "eod_report")
 
 
 @admin.register(Blocker)
@@ -84,7 +93,7 @@ class BlockerAdmin(admin.ModelAdmin):
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ("user", "display_name", "department", "role", "auto_send_enabled", "timezone")
+    list_display = ("user", "display_name", "department", "role", "notify_email", "auto_send_enabled", "timezone")
     list_filter = ("role", "department")
     search_fields = ("user__username", "display_name", "department__name")
     raw_id_fields = ("user",)
@@ -94,5 +103,13 @@ class UserProfileAdmin(admin.ModelAdmin):
 class EODReportAdmin(admin.ModelAdmin):
     list_display = ("user", "date", "format", "status", "tone", "auto_generated", "submitted_at", "created_at")
     list_filter = ("format", "status", "auto_generated", "date")
+    search_fields = ("content", "user__username")
+    raw_id_fields = ("user",)
+
+
+@admin.register(EODReportArchive)
+class EODReportArchiveAdmin(admin.ModelAdmin):
+    list_display = ("user", "log_date", "format", "submitted_at", "archived_at")
+    list_filter = ("format", "log_date")
     search_fields = ("content", "user__username")
     raw_id_fields = ("user",)

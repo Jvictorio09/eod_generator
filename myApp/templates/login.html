@@ -2,24 +2,54 @@
 {% block title %}Sign in — CloseOut{% endblock %}
 
 {% block body %}
-<div class="login-wrap">
-  <div class="login-card">
-    <h1>CloseOut</h1>
-    <p>Sign in to log your day and generate your EOD report.</p>
-    {% if error %}<div class="login-error">{{ error }}</div>{% endif %}
-    {% if msg %}<div class="login-error" style="color:var(--amber);background:var(--amber-dim)">{{ msg }}</div>{% endif %}
-    <form method="post" action="{% url 'login' %}">
-      {% csrf_token %}
-      <div class="field">
-        <label for="username">Username</label>
-        <input type="text" id="username" name="username" autocomplete="username" required autofocus/>
+<div class="auth-page">
+  <div class="auth-backdrop" aria-hidden="true">
+    <div class="auth-orb auth-orb--gold"></div>
+    <div class="auth-orb auth-orb--blue"></div>
+    <div class="auth-orb auth-orb--violet"></div>
+    <div class="auth-grid"></div>
+    <div class="auth-lines"></div>
+  </div>
+
+  <div class="auth-panel">
+    <div class="auth-card">
+      <div class="auth-card-header">
+        {% include "includes/auth_brand.html" with auth_title="CloseOut" auth_lead="Log your day. Post your EOD." %}
       </div>
-      <div class="field">
-        <label for="password">Password</label>
-        <input type="password" id="password" name="password" autocomplete="current-password" required/>
+
+      <div class="auth-card-body">
+        {% if logged_in_boss %}
+        <div class="auth-notice">You're signed in as <strong>boss</strong>. Use team oversight for the dashboard, or sign out to use an employee account.</div>
+        <div class="auth-footer" style="margin-top:0;margin-bottom:16px">
+          <a href="{% url 'dashboard' %}">Open team dashboard →</a>
+          <span> · </span>
+          <a href="{% url 'logout' %}">Sign out</a>
+        </div>
+        {% endif %}
+        {% if error %}<div class="auth-error">{{ error }}</div>{% endif %}
+        {% if msg %}<div class="auth-notice">{{ msg }}</div>{% endif %}
+        {% if not logged_in_boss %}
+        <form method="post" action="{% url 'login' %}">
+          {% csrf_token %}
+          <div class="field">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" autocomplete="username" required autofocus/>
+          </div>
+          {% include "includes/auth_password_field.html" with field_id="password" field_name="password" field_label="Password" autocomplete="current-password" required=True %}
+          <div class="auth-actions">
+            <button type="submit" class="btn-auth">Sign in</button>
+            {% if registration_enabled %}
+            <span class="auth-divider" aria-hidden="true">or</span>
+            <a href="{% url 'register' %}" class="btn-auth-secondary">Create account</a>
+            {% endif %}
+          </div>
+        </form>
+        {% endif %}
+        <div class="auth-footer">
+          <a href="{% url 'oversight_login' %}">Team oversight sign in</a>
+        </div>
       </div>
-      <button type="submit" class="btn btn-primary btn-block">Sign in</button>
-    </form>
+    </div>
   </div>
 </div>
 {% endblock %}

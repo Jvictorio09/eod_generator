@@ -77,6 +77,10 @@ class UserProfile(models.Model):
     quiet_hours_start = models.TimeField(null=True, blank=True)
     quiet_hours_end = models.TimeField(null=True, blank=True)
     last_auto_send_date = models.DateField(null=True, blank=True)
+    notify_email = models.BooleanField(
+        default=True,
+        help_text="Send Gmail/email alerts for team EOD posts (boss/manager).",
+    )
 
     class Meta:
         constraints = [
@@ -98,6 +102,59 @@ class UserProfile(models.Model):
         return self.role in (self.Role.MANAGER, self.Role.BOSS)
 
 
+class Project(models.Model):
+    """Team-wide project tag for tasks (boss can add more over time)."""
+
+    name = models.CharField(max_length=200, unique=True)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="created_projects",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class UserProjectProgress(models.Model):
+    """Employee self-reported completion % on a team project."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="project_progress",
+    )
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="user_progress",
+    )
+    percent = models.PositiveSmallIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "project"], name="unique_user_project_progress"),
+            models.CheckConstraint(
+                check=models.Q(percent__gte=0) & models.Q(percent__lte=100),
+                name="user_project_progress_percent_range",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["user", "project"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} · {self.project.name} · {self.percent}%"
+
+
 class Task(models.Model):
     class Status(models.TextChoices):
         DONE = "DONE", "Done"
@@ -113,6 +170,13 @@ class Task(models.Model):
     date = models.DateField(default=timezone.localdate)
     title = models.CharField(max_length=500)
     project = models.CharField(max_length=200, blank=True, default="")
+    project_ref = models.ForeignKey(
+        Project,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="tasks",
+    )
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
@@ -207,6 +271,11 @@ class EODReport(models.Model):
     tone = models.CharField(max_length=20, default="professional")
     length = models.CharField(max_length=20, default="standard")
     content = models.TextField()
+    draft_content = models.TextField(
+        blank=True,
+        default="",
+        help_text="Regenerated preview after an EOD was already posted for this day.",
+    )
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
@@ -214,6 +283,11 @@ class EODReport(models.Model):
     )
     submitted_at = models.DateTimeField(null=True, blank=True)
     auto_generated = models.BooleanField(default=False)
+    project_progress = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Snapshot of self-reported % per project at post time.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -231,9 +305,38 @@ class EODReport(models.Model):
         return f"EOD {self.user.username} {self.date} ({self.format}, {self.status})"
 
 
+class EODReportArchive(models.Model):
+    """Immutable snapshot when an employee re-posts an EOD for the same day."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="eod_archives",
+    )
+    log_date = models.DateField(help_text="Workday the archived EOD covered.")
+    format = models.CharField(max_length=10, choices=EODReport.Format.choices, default=EODReport.Format.PLAIN)
+    tone = models.CharField(max_length=20, default="professional")
+    length = models.CharField(max_length=20, default="standard")
+    content = models.TextField()
+    project_progress = models.JSONField(default=list, blank=True)
+    submitted_at = models.DateTimeField()
+    archived_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-submitted_at"]
+        indexes = [
+            models.Index(fields=["user", "-submitted_at"]),
+            models.Index(fields=["user", "log_date"]),
+        ]
+
+    def __str__(self):
+        return f"EOD archive {self.user.username} {self.log_date}"
+
+
 class TaskNotification(models.Model):
     class Kind(models.TextChoices):
         TASK_ASSIGNED = "TASK_ASSIGNED", "Task assigned"
+        EOD_POSTED = "EOD_POSTED", "EOD posted"
 
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -242,6 +345,13 @@ class TaskNotification(models.Model):
     )
     task = models.ForeignKey(
         Task,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+    )
+    eod_report = models.ForeignKey(
+        EODReport,
         null=True,
         blank=True,
         on_delete=models.CASCADE,

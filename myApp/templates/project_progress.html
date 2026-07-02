@@ -1,0 +1,425 @@
+{% extends "base.html" %}
+{% block title %}Project progress — CloseOut{% endblock %}
+
+{% block extra_head %}
+<script>
+  (function () {
+    var lvl = parseInt(localStorage.getItem('closeout:dash-text') || '2', 10);
+    if (isNaN(lvl) || lvl < 0) lvl = 0;
+    if (lvl > 4) lvl = 4;
+    document.documentElement.setAttribute('data-dash-text', String(lvl));
+  })();
+</script>
+<style>
+  .proj-page { --s: 1; max-width: 960px; margin: 0 auto; padding: 12px 18px 32px; }
+  html[data-dash-text="0"] .proj-page { --s: 0.85; }
+  html[data-dash-text="1"] .proj-page { --s: 0.93; }
+  html[data-dash-text="2"] .proj-page { --s: 1; }
+  html[data-dash-text="3"] .proj-page { --s: 1.14; }
+  html[data-dash-text="4"] .proj-page { --s: 1.28; }
+
+  .text-scale-control {
+    display: flex; align-items: center; gap: 1px; padding: 2px;
+    border-radius: 10px; border: 1px solid var(--border); background: var(--surface);
+  }
+  .text-scale-control button {
+    width: 34px; height: 34px; border: none; background: transparent; color: var(--text-2);
+    font-size: 14px; font-weight: 700; border-radius: 8px; cursor: pointer; line-height: 1; font-family: var(--font);
+  }
+  .text-scale-control button:hover:not(:disabled) { background: var(--bg-elevated); color: var(--text); }
+  .text-scale-control button:disabled { opacity: 0.3; cursor: not-allowed; }
+  .text-scale-label {
+    font-size: 10px; font-weight: 600; color: var(--text-3); min-width: 38px; text-align: center;
+    font-family: var(--mono); user-select: none;
+  }
+
+  .nav-dash .logo-icon svg { width: 18px; height: 18px; }
+  .nav-dash .nav-inner {
+    max-width: 1440px; margin: 0 auto; width: 100%; display: flex; align-items: center; gap: 10px; padding: 0 18px;
+  }
+  .nav-dash .nav-link { font-size: calc(13px * var(--s)); }
+  .nav-link.active { color: var(--text); background: var(--surface); font-weight: 600; }
+  .nav-link-pill {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px;
+    background: var(--amber-dim); color: var(--amber); font-weight: 600; font-size: calc(12px * var(--s));
+  }
+  .nav-link-pill.posted { background: var(--green-dim); color: var(--green); }
+
+  .notify-wrap { position: relative; }
+  .notify-badge {
+    position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px;
+    border-radius: 999px; background: var(--red); color: #fff; font-size: 10px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; line-height: 1;
+  }
+  .notify-dropdown {
+    position: absolute; top: calc(100% + 8px); right: 0; width: min(360px, 92vw);
+    border-radius: var(--radius-lg); border: 1px solid var(--border); background: var(--surface);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15); z-index: 200; overflow: hidden;
+  }
+  .notify-dropdown-head {
+    padding: 12px 14px; font-size: 12px; font-weight: 600; color: var(--text-3);
+    text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--border);
+  }
+  .notify-dropdown-list { max-height: 320px; overflow-y: auto; }
+  .notify-item {
+    display: block; width: 100%; text-align: left; padding: 12px 14px; border: none; background: transparent;
+    color: var(--text); cursor: pointer; border-bottom: 1px solid var(--border); font-family: inherit;
+  }
+  .notify-item:hover { background: var(--surface-hover); }
+  .notify-item p { margin: 0; font-size: calc(13px * var(--s)); line-height: 1.45; }
+  .notify-item time { display: block; margin-top: 4px; font-size: 11px; color: var(--text-3); }
+  .notify-empty { padding: 20px 14px; font-size: calc(13px * var(--s)); color: var(--text-3); text-align: center; }
+  .notify-mark-all {
+    display: block; width: 100%; padding: 10px; border: none; background: transparent;
+    font-size: 12px; font-weight: 500; color: var(--text-2); cursor: pointer;
+  }
+  .notify-mark-all:hover { color: var(--text); background: var(--surface-hover); }
+
+  .proj-hero {
+    margin-bottom: 18px; padding-bottom: 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  }
+  .proj-hero h1 {
+    margin: 0 0 6px; font-size: calc(22px * var(--s)); font-weight: 600; letter-spacing: -0.03em;
+  }
+  .proj-hero .lead { margin: 0; font-size: calc(14px * var(--s)); color: var(--text-2); line-height: 1.5; max-width: 52ch; }
+  .proj-role-tag {
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--text-3); padding: 6px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface);
+  }
+
+  .proj-toolbar {
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    margin-bottom: 16px; padding: 12px 14px; border-radius: var(--radius-lg);
+    border: 1px solid var(--border); background: var(--surface);
+  }
+  .proj-toolbar label { display: block; font-size: 11px; color: var(--text-3); margin-bottom: 4px; }
+  .proj-toolbar select {
+    padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg-elevated); color: var(--text); font-size: 13px; font-family: inherit; min-width: 140px;
+  }
+  .proj-scope-note { font-size: calc(12px * var(--s)); color: var(--text-3); margin: 0; align-self: center; }
+
+  .proj-list { display: flex; flex-direction: column; gap: 10px; }
+  .proj-empty {
+    margin: 0; padding: 32px 20px; text-align: center; font-size: calc(14px * var(--s)); color: var(--text-3);
+    border: 1px dashed var(--border); border-radius: var(--radius-lg); background: var(--surface);
+  }
+
+  .proj-card {
+    border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); overflow: hidden;
+  }
+  .proj-card summary {
+    list-style: none; cursor: pointer; padding: 14px 16px;
+    display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center;
+  }
+  .proj-card summary::-webkit-details-marker { display: none; }
+  .proj-name { font-weight: 600; font-size: calc(14px * var(--s)); }
+  .proj-pct {
+    font-size: calc(14px * var(--s)); font-weight: 700; font-family: var(--mono); color: var(--violet);
+  }
+  .proj-bar {
+    grid-column: 1 / -1; height: 5px; border-radius: 999px; background: var(--bg-elevated); overflow: hidden;
+  }
+  .proj-bar span {
+    display: block; height: 100%; border-radius: 999px;
+    background: linear-gradient(90deg, var(--violet), var(--accent));
+  }
+  .proj-meta { grid-column: 1 / -1; font-size: calc(11px * var(--s)); color: var(--text-3); }
+
+  .proj-emp-list {
+    border-top: 1px solid var(--border); padding: 10px 16px 14px;
+    display: flex; flex-direction: column; gap: 10px; background: var(--bg-elevated);
+  }
+  .proj-emp-row {
+    display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center;
+    font-size: calc(12px * var(--s));
+  }
+  .proj-emp-name { color: var(--text-2); }
+  .proj-emp-pct { font-family: var(--mono); font-weight: 600; font-size: calc(11px * var(--s)); color: var(--text); }
+  .proj-emp-bar {
+    grid-column: 1 / -1; height: 3px; border-radius: 999px; background: var(--surface); overflow: hidden;
+  }
+  .proj-emp-bar span {
+    display: block; height: 100%; border-radius: 999px; background: var(--violet); opacity: 0.85;
+  }
+</style>
+{% endblock %}
+
+{% block body %}
+<nav class="nav nav-dash">
+  <div class="nav-inner">
+    <a class="logo" href="/dashboard/">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      </div>
+      Oversight
+    </a>
+    <div class="nav-gap"></div>
+    <div class="text-scale-control" role="group" aria-label="Text size">
+      <button type="button" id="text-smaller" aria-label="Decrease text size" title="Smaller text">A−</button>
+      <span class="text-scale-label" id="text-scale-label">100%</span>
+      <button type="button" id="text-larger" aria-label="Increase text size" title="Larger text">A+</button>
+    </div>
+    <button class="btn btn-icon theme-toggle" id="btn-theme" type="button" aria-label="Toggle theme">
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+    <div class="notify-wrap" id="notify-wrap">
+      <button class="btn btn-icon notify-bell" id="btn-notify" type="button" aria-label="Notifications" aria-expanded="false" aria-haspopup="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="notify-badge" id="notify-badge" style="display:none" aria-hidden="true">0</span>
+      </button>
+      <div class="notify-dropdown" id="notify-dropdown" hidden>
+        <div class="notify-dropdown-head">Notifications</div>
+        <div class="notify-dropdown-list" id="notify-list"></div>
+        <button type="button" class="notify-mark-all" id="notify-mark-all" style="display:none">Mark all read</button>
+      </div>
+    </div>
+    <a class="nav-link" href="/dashboard/">Team</a>
+    <a class="nav-link active" href="{% url 'project_progress' %}">Projects</a>
+    <a class="nav-link" href="/dashboard/?view=archive">EOD archive</a>
+    {% if is_manager %}
+    <a class="nav-link {% if not viewer_posted and date_relation == 'today' %}nav-link-pill{% else %}nav-link-pill posted{% endif %}" href="{% url 'home' %}">
+      {% if not viewer_posted and date_relation == 'today' %}Post my EOD{% else %}My log{% endif %}
+    </a>
+    {% endif %}
+    <a class="nav-link" href="{% url 'logout' %}">Sign out</a>
+  </div>
+</nav>
+
+<div class="proj-page">
+  <header class="proj-hero">
+    <div>
+      <p class="greeting-accent" id="proj-greeting"></p>
+      <h1>Project progress</h1>
+      <p class="lead">Completion % from tasks tagged on days your team posted an EOD. Expand any project to see each person’s contribution.</p>
+    </div>
+    <span class="proj-role-tag">{{ role_label }}</span>
+  </header>
+
+  <form class="proj-toolbar" method="get" id="proj-days-form">
+    <div>
+      <label for="proj-days">Time window</label>
+      <select id="proj-days" name="days">
+        <option value="7" {% if window_days == 7 %}selected{% endif %}>Last 7 days</option>
+        <option value="30" {% if window_days == 30 %}selected{% endif %}>Last 30 days</option>
+        <option value="90" {% if window_days == 90 %}selected{% endif %}>Last 90 days</option>
+      </select>
+    </div>
+    <p class="proj-scope-note" id="proj-scope-note">Loading…</p>
+  </form>
+
+  <div class="proj-list" id="proj-list" aria-live="polite">
+    <p class="proj-empty">Loading project progress…</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const KEY_THEME = 'closeout:theme';
+  const KEY_TEXT = 'closeout:dash-text';
+  const TEXT_SCALES = [85, 93, 100, 114, 128];
+  const WINDOW_DAYS = {{ window_days }};
+  const VIEWER_NAME = "{{ viewer_display_name|escapejs }}";
+
+  (function () {
+    const el = document.getElementById('proj-greeting');
+    if (el && window.closeoutGreeting) {
+      el.textContent = window.closeoutGreeting({ name: VIEWER_NAME, accentOnly: true });
+    }
+  })();
+
+  function getCookie(name) {
+    if (!document.cookie) return null;
+    for (const part of document.cookie.split(';')) {
+      const [k, ...rest] = part.trim().split('=');
+      if (k === name) return decodeURIComponent(rest.join('='));
+    }
+    return null;
+  }
+
+  async function api(url, opts = {}) {
+    const method = opts.method || 'GET';
+    const headers = { ...(opts.headers || {}) };
+    if (opts.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+    if (method !== 'GET') headers['X-CSRFToken'] = getCookie('csrftoken');
+    const resp = await fetch(url, { ...opts, method, headers, body: opts.body });
+    let data = {};
+    try { data = await resp.json(); } catch { /* empty */ }
+    if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+    return data;
+  }
+
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function renderProjects(data) {
+    const box = document.getElementById('proj-list');
+    const note = document.getElementById('proj-scope-note');
+    if (!box) return;
+    if (note) {
+      note.textContent = `From posted EODs · last ${data.window_days} days · ${data.scope === 'team' ? 'team' : 'you'}`;
+    }
+    const rows = (data.projects || []).filter(p => p.total > 0);
+    if (!rows.length) {
+      box.innerHTML = '<p class="proj-empty">No project-tagged work on posted EOD days yet.</p>';
+      return;
+    }
+    box.innerHTML = rows.map(p => {
+        const empHtml = (p.employees || []).map(emp => {
+          const reported = emp.self_pct != null ? `${emp.self_pct}%` : '—';
+          return `
+          <div class="proj-emp-row">
+            <span class="proj-emp-name">${escapeHtml(emp.name)}</span>
+            <span class="proj-emp-pct">${reported}</span>
+            <div class="proj-emp-bar"><span style="width:${emp.self_pct ?? emp.pct ?? 0}%"></span></div>
+            <span class="proj-meta" style="grid-column:1/-1">Reported ${reported} · tasks ${emp.pct}%</span>
+          </div>
+        `}).join('');
+      return `
+        <details class="proj-card">
+          <summary>
+            <span class="proj-name">${escapeHtml(p.name)}</span>
+            <span class="proj-pct">${p.pct}%</span>
+            <div class="proj-bar"><span style="width:${p.pct}%"></span></div>
+            <span class="proj-meta">${p.done} of ${p.total} tasks done on posted EOD days</span>
+          </summary>
+          ${empHtml ? `<div class="proj-emp-list">${empHtml}</div>` : ''}
+        </details>
+      `;
+    }).join('');
+  }
+
+  async function loadProjects() {
+    const box = document.getElementById('proj-list');
+    try {
+      const data = await api(`/api/insights/projects/eod/?days=${WINDOW_DAYS}`);
+      renderProjects(data);
+    } catch (e) {
+      if (box) box.innerHTML = '<p class="proj-empty">Could not load project progress.</p>';
+    }
+  }
+
+  document.getElementById('proj-days')?.addEventListener('change', () => {
+    document.getElementById('proj-days-form')?.submit();
+  });
+
+  let notifyOpen = false;
+  let notifyItems = [];
+
+  function formatNotifyTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const now = new Date();
+    return d.toDateString() === now.toDateString()
+      ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+      : d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  }
+
+  function setNotifyOpen(open) {
+    notifyOpen = open;
+    const dd = document.getElementById('notify-dropdown');
+    const btn = document.getElementById('btn-notify');
+    if (dd) dd.hidden = !open;
+    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  function renderNotifyDropdown() {
+    const list = document.getElementById('notify-list');
+    const badge = document.getElementById('notify-badge');
+    const markAll = document.getElementById('notify-mark-all');
+    if (!list) return;
+    if (!notifyItems.length) {
+      list.innerHTML = '<div class="notify-empty">No new notifications</div>';
+      if (badge) badge.style.display = 'none';
+      if (markAll) markAll.style.display = 'none';
+      return;
+    }
+    if (badge) {
+      badge.textContent = notifyItems.length > 9 ? '9+' : String(notifyItems.length);
+      badge.style.display = '';
+    }
+    if (markAll) markAll.style.display = '';
+    list.innerHTML = notifyItems.map(n => `
+      <button type="button" class="notify-item" data-nid="${n.id}" data-link="${escapeHtml(n.link || '')}">
+        <p>${escapeHtml(n.message)}</p>
+        <time>${escapeHtml(formatNotifyTime(n.created_at))}</time>
+      </button>
+    `).join('');
+    list.querySelectorAll('.notify-item').forEach(item => {
+      item.onclick = async () => {
+        await api('/api/notifications/read/', {
+          method: 'POST',
+          body: JSON.stringify({ ids: [parseInt(item.dataset.nid, 10)] }),
+        });
+        notifyItems = notifyItems.filter(x => x.id !== parseInt(item.dataset.nid, 10));
+        renderNotifyDropdown();
+        setNotifyOpen(false);
+        if (item.dataset.link) window.location.href = item.dataset.link;
+      };
+    });
+  }
+
+  async function loadNotifications() {
+    try {
+      const data = await api('/api/notifications/');
+      notifyItems = data.notifications || [];
+      renderNotifyDropdown();
+    } catch (e) { /* non-fatal */ }
+  }
+
+  document.getElementById('btn-notify')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setNotifyOpen(!notifyOpen);
+    if (notifyOpen) loadNotifications();
+  });
+  document.getElementById('notify-mark-all')?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (!notifyItems.length) return;
+    await api('/api/notifications/read/', { method: 'POST', body: '{}' });
+    notifyItems = [];
+    renderNotifyDropdown();
+  });
+  document.addEventListener('click', (e) => {
+    if (!notifyOpen) return;
+    const wrap = document.getElementById('notify-wrap');
+    if (wrap && !wrap.contains(e.target)) setNotifyOpen(false);
+  });
+
+  function getTextLevel() {
+    const raw = parseInt(localStorage.getItem(KEY_TEXT) || '2', 10);
+    return Number.isFinite(raw) ? Math.max(0, Math.min(4, raw)) : 2;
+  }
+  function applyTextLevel(lvl) {
+    document.documentElement.setAttribute('data-dash-text', String(lvl));
+    const label = document.getElementById('text-scale-label');
+    if (label) label.textContent = TEXT_SCALES[lvl] + '%';
+    const smaller = document.getElementById('text-smaller');
+    const larger = document.getElementById('text-larger');
+    if (smaller) smaller.disabled = lvl <= 0;
+    if (larger) larger.disabled = lvl >= 4;
+  }
+  applyTextLevel(getTextLevel());
+  document.getElementById('text-smaller')?.addEventListener('click', () => {
+    const lvl = getTextLevel();
+    if (lvl > 0) { localStorage.setItem(KEY_TEXT, String(lvl - 1)); applyTextLevel(lvl - 1); }
+  });
+  document.getElementById('text-larger')?.addEventListener('click', () => {
+    const lvl = getTextLevel();
+    if (lvl < 4) { localStorage.setItem(KEY_TEXT, String(lvl + 1)); applyTextLevel(lvl + 1); }
+  });
+
+  function getThemePref() { return localStorage.getItem(KEY_THEME) || 'system'; }
+  document.getElementById('btn-theme')?.addEventListener('click', () => {
+    const order = ['system', 'light', 'dark'];
+    const next = order[(order.indexOf(getThemePref()) + 1) % order.length];
+    localStorage.setItem(KEY_THEME, next);
+    if (window.closeoutApplyTheme) window.closeoutApplyTheme(next);
+  });
+
+  loadProjects();
+</script>
+{% endblock %}

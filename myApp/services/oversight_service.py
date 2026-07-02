@@ -6,7 +6,13 @@ from django.contrib.auth import get_user_model
 from django.db.models import Count, Q
 from django.utils import timezone
 
-from myApp.models import Department, EODReport, Task, UserProfile
+from myApp.models import Department, EODReport, EODReportArchive, Task, UserProfile
+from myApp.services.report_service import (
+    archive_content_for_display,
+    report_content_for_display,
+    report_preview,
+    submitted_history_entries,
+)
 from myApp.services.task_service import active_blocker, blocker_age_label, get_or_create_profile, serialize_blocker
 
 User = get_user_model()
@@ -202,19 +208,33 @@ def boards_overview(viewer, day):
     """Boss: all boards with headcount and posted count."""
     profile = viewer_profile(viewer)
     dept_ids = accessible_department_ids(profile, viewer)
+    dept_member_map = {}
+    all_member_ids = []
+    for dept in Department.objects.filter(pk__in=dept_ids):
+        member_user_ids = list(
+            UserProfile.objects.filter(
+                department=dept, user__is_active=True,
+            )
+            .exclude(role=UserProfile.Role.BOSS)
+            .values_list("user_id", flat=True)
+        )
+        if member_user_ids:
+            dept_member_map[dept.id] = (dept, member_user_ids)
+            all_member_ids.extend(member_user_ids)
+
+    posted_users = set()
+    if all_member_ids:
+        posted_users = set(
+            EODReport.objects.filter(
+                user_id__in=all_member_ids,
+                date=day,
+                status=EODReport.Status.SUBMITTED,
+            ).values_list("user_id", flat=True)
+        )
+
     boards = []
-    for dept in Department.objects.filter(pk__in=dept_ids).annotate(
-        member_count=Count("members", filter=Q(members__user__is_active=True)),
-    ):
-        members = UserProfile.objects.filter(
-            department=dept, user__is_active=True
-        ).exclude(role=UserProfile.Role.BOSS)
-        member_user_ids = list(members.values_list("user_id", flat=True))
-        posted = EODReport.objects.filter(
-            user_id__in=member_user_ids,
-            date=day,
-            status=EODReport.Status.SUBMITTED,
-        ).values("user_id").distinct().count()
+    for dept, member_user_ids in dept_member_map.values():
+        posted = sum(1 for uid in member_user_ids if uid in posted_users)
         boards.append({
             "id": dept.id,
             "name": dept.name,
@@ -266,6 +286,63 @@ def board_people(viewer, department_id, day):
     return people
 
 
+def employee_eod_history(viewer, user_id, *, board_id=None, selected_date=None, limit=60):
+    """All posted EODs for one employee (current + archived re-posts), newest first."""
+    if not can_view_user_eod(viewer, user_id):
+        return []
+    try:
+        target = User.objects.get(pk=user_id, is_active=True)
+    except User.DoesNotExist:
+        return []
+
+    rows = []
+    for entry in submitted_history_entries(target, limit=limit):
+        if entry["kind"] == "report":
+            report = entry["report"]
+            body = report_content_for_display(report)
+            progress = report.project_progress or []
+            row_id = report.id
+            log_date = report.date
+            submitted = report.submitted_at
+            is_archive = False
+        else:
+            archive = entry["archive"]
+            body = archive_content_for_display(archive)
+            progress = archive.project_progress or []
+            row_id = f"a{archive.id}"
+            log_date = archive.log_date
+            submitted = archive.submitted_at
+            is_archive = True
+
+        date_iso = log_date.isoformat()
+        params = [f"date={date_iso}", f"user={user_id}"]
+        if board_id:
+            params.append(f"board={board_id}")
+
+        progress_label = ""
+        if progress:
+            progress_label = "; ".join(
+                f"{item.get('name')}: {item.get('percent', 0)}%"
+                for item in progress
+                if item.get("name")
+            )
+
+        rows.append({
+            "id": row_id,
+            "date": date_iso,
+            "date_display": log_date.strftime("%a, %b %d, %Y"),
+            "excerpt": report_preview(body) or _truncate_text(body, 140),
+            "submitted_at": submitted.isoformat() if submitted else None,
+            "submitted_display": _format_eod_submitted(submitted) if submitted else "",
+            "project_progress": progress,
+            "progress_label": progress_label,
+            "view_url": "?" + "&".join(params),
+            "is_selected": bool(selected_date and log_date == selected_date),
+            "is_archive": is_archive,
+        })
+    return rows
+
+
 def person_oversight_detail(viewer, user_id, day):
     """Posted EOD + task breakdown for one person."""
     if not can_view_user_eod(viewer, user_id):
@@ -295,15 +372,17 @@ def person_oversight_detail(viewer, user_id, day):
     done = []
 
     for task in tasks:
+        from_boss = bool(
+            task.assigned_by_id
+            and getattr(getattr(task.assigned_by, "profile", None), "role", None)
+            == UserProfile.Role.BOSS
+        )
         entry = {
             "id": task.id,
             "title": task.title,
             "project": task.project,
-            "from_boss": bool(
-                task.assigned_by_id
-                and getattr(getattr(task.assigned_by, "profile", None), "role", None)
-                == UserProfile.Role.BOSS
-            ),
+            "from_boss": from_boss,
+            "assigned_by_id": task.assigned_by_id,
         }
         if task.status == Task.Status.DONE:
             done.append(entry)
@@ -317,6 +396,7 @@ def person_oversight_detail(viewer, user_id, day):
 
     posted = report is not None
     display = posting_display(posted, day)
+    board_id = target_profile.department_id if target_profile else None
 
     return {
         "user_id": target.id,
@@ -326,10 +406,22 @@ def person_oversight_detail(viewer, user_id, day):
         "role_label": target_profile.get_role_display() if target_profile else "Employee",
         "department": target_profile.department_name if target_profile else "",
         "report": {
-            "content": report.content,
+            "content": report_content_for_display(report) if report else "",
             "format": report.format,
-            "submitted_at": report.submitted_at.isoformat() if report and report.submitted_at else None,
+            "date": report.date.isoformat(),
+            "date_display": _format_eod_date(report.date),
+            "submitted_at": report.submitted_at.isoformat() if report.submitted_at else None,
+            "submitted_display": _format_eod_submitted(report.submitted_at),
+            "submitted_time": _format_eod_submitted_time(report.submitted_at),
+            "project_progress": report.project_progress or [],
         } if report else None,
+        "project_progress": (report.project_progress or []) if report else [],
+        "eod_history": employee_eod_history(
+            viewer,
+            user_id,
+            board_id=board_id,
+            selected_date=day,
+        ),
         "working_on": working_on,
         "blocked": blocked,
         "done": done,
@@ -455,6 +547,28 @@ def eod_archive_entries(
     return entries
 
 
+def _format_eod_date(day):
+    if not day:
+        return ""
+    return day.strftime("%A, %B %d, %Y")
+
+
+def _format_eod_submitted(dt):
+    if not dt:
+        return ""
+    local = timezone.localtime(dt)
+    hour = local.strftime("%I").lstrip("0") or "12"
+    return f"{local.strftime('%b %d, %Y')} at {hour}:{local.strftime('%M %p')}"
+
+
+def _format_eod_submitted_time(dt):
+    if not dt:
+        return ""
+    local = timezone.localtime(dt)
+    hour = local.strftime("%I").lstrip("0") or "12"
+    return f"{hour}:{local.strftime('%M %p')}"
+
+
 def _truncate_text(text, limit=420):
     text = (text or "").strip()
     if len(text) <= limit:
@@ -469,7 +583,8 @@ def _serialize_person_for_ai(detail):
         "role": detail["role_label"],
         "department": detail["department"],
         "posted": detail["posted"],
-        "eod_excerpt": _truncate_text(report["content"]) if report else None,
+        "eod_excerpt": _truncate_text((detail.get("report") or {}).get("content")) if detail.get("report") else None,
+        "project_progress": detail.get("project_progress") or (detail.get("report") or {}).get("project_progress") or [],
         "working_on": [t["title"] for t in detail["working_on"]],
         "blocked": [
             {
@@ -622,3 +737,118 @@ def build_oversight_snapshot(viewer, day, board_id=None, user_id=None):
     snapshot["missed_people"] = all_missed
     snapshot["blockers"] = all_blockers
     return snapshot
+
+
+def _names_csv(names, limit=8):
+    items = [n for n in (names or []) if n]
+    if not items:
+        return ""
+    if len(items) <= limit:
+        return ", ".join(items)
+    rest = len(items) - limit
+    return f"{', '.join(items[:limit])}, +{rest} more"
+
+
+def format_oversight_summary_from_snapshot(snapshot, viewer_name=""):
+    """Build an oversight opening summary from live data — no OpenAI call."""
+    greeting = f"Hi {viewer_name}," if viewer_name else "Hi,"
+    date_ctx = snapshot.get("date_context") or {}
+    date_str = snapshot.get("date", "")
+    lines = [greeting, ""]
+    focus = snapshot.get("focus")
+
+    if focus == "person":
+        person = snapshot.get("person") or {}
+        name = person.get("name") or "This person"
+        dept = person.get("department") or ""
+        header = f"{name}" + (f" ({dept})" if dept else "")
+        if person.get("posted"):
+            lines.append(f"{header} posted their EOD for {date_str}.")
+            if person.get("eod_excerpt"):
+                lines.append(person["eod_excerpt"])
+            progress = person.get("project_progress") or []
+            if progress:
+                parts = [f"{item.get('name')}: {item.get('percent', 0)}%" for item in progress if item.get("name")]
+                if parts:
+                    lines.append("Project progress: " + "; ".join(parts) + ".")
+        elif date_ctx.get("is_future"):
+            lines.append(f"{header} — EOD not due yet for {date_str}.")
+        elif date_ctx.get("is_past"):
+            lines.append(f"{header} did not post an EOD for {date_str}.")
+        else:
+            lines.append(f"{header} has not posted yet today ({date_str}).")
+        done = person.get("done") or []
+        if done:
+            lines.append("Done today: " + "; ".join(done[:6]) + (f" (+{len(done) - 6} more)" if len(done) > 6 else "") + ".")
+        working = person.get("working_on") or []
+        if working:
+            lines.append("In progress: " + "; ".join(working[:6]) + (f" (+{len(working) - 6} more)" if len(working) > 6 else "") + ".")
+        blocked = person.get("blocked") or []
+        if blocked:
+            lines.append("Blockers:")
+            for item in blocked[:6]:
+                note = f" — {item['note']}" if item.get("note") else ""
+                age = f" ({item['age']})" if item.get("age") else ""
+                lines.append(f"- {item['title']}{note}{age}")
+
+    elif focus == "board":
+        board = snapshot.get("board") or {}
+        name = board.get("name") or "This board"
+        members = board.get("members") or 0
+        posted = board.get("posted_count") or 0
+        lines.append(f"{name}: {posted}/{members} posted for {date_str}.")
+        if date_ctx.get("is_today"):
+            pending = _names_csv(board.get("pending_names"))
+            if pending:
+                lines.append(f"Still pending: {pending}.")
+        elif date_ctx.get("is_past"):
+            missed = _names_csv(board.get("missed_names"))
+            if missed:
+                lines.append(f"Did not post: {missed}.")
+        elif date_ctx.get("is_future"):
+            not_due = _names_csv(board.get("not_due_names"))
+            if not_due:
+                lines.append(f"EOD not due yet: {not_due}.")
+        done = board.get("done_today") or []
+        if done:
+            lines.append("Shipped today:")
+            for item in done[:6]:
+                lines.append(f"- {item['person']}: {item['title']}")
+        working = board.get("working_on") or []
+        if working:
+            lines.append("In progress:")
+            for item in working[:6]:
+                lines.append(f"- {item['person']}: {item['title']}")
+        blockers = board.get("blockers") or []
+        if blockers:
+            lines.append("Needs attention:")
+            for item in blockers[:6]:
+                note = f" — {item['note']}" if item.get("note") else ""
+                lines.append(f"- {item['person']}: {item['title']}{note}")
+
+    else:
+        totals = snapshot.get("totals") or {}
+        boards = totals.get("boards") or len(snapshot.get("boards") or [])
+        members = totals.get("members") or 0
+        posted = totals.get("posted") or 0
+        lines.append(f"All boards — {posted}/{members} posted across {boards} board(s) for {date_str}.")
+        if date_ctx.get("is_today") and totals.get("pending"):
+            lines.append(f"{totals['pending']} still pending today.")
+        if date_ctx.get("is_past") and totals.get("missed"):
+            lines.append(f"{totals['missed']} did not post for this date.")
+        for board in (snapshot.get("boards") or [])[:4]:
+            lines.append(
+                f"- {board['name']}: {board.get('posted_count', 0)}/{board.get('members', 0)} posted"
+            )
+        blockers = snapshot.get("blockers") or []
+        if blockers:
+            lines.append("Blockers across the team:")
+            for item in blockers[:6]:
+                board = f" ({item['board']})" if item.get("board") else ""
+                lines.append(f"- {item['person']}: {item['title']}{board}")
+
+    lines.append("")
+    lines.append(
+        "If you have questions or want to dig deeper, feel free to ask here — I'm here to help."
+    )
+    return "\n".join(lines).strip()

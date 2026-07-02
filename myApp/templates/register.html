@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Create account — CloseOut{% endblock %}
+
+{% block body %}
+<div class="auth-page">
+  <div class="auth-backdrop" aria-hidden="true">
+    <div class="auth-orb auth-orb--gold"></div>
+    <div class="auth-orb auth-orb--blue"></div>
+    <div class="auth-orb auth-orb--violet"></div>
+    <div class="auth-grid"></div>
+    <div class="auth-lines"></div>
+  </div>
+
+  <div class="auth-panel">
+    <div class="auth-card">
+      <div class="auth-card-header">
+        {% include "includes/auth_brand.html" with auth_title="Create account" auth_lead="Join your team board." %}
+      </div>
+
+      <div class="auth-card-body">
+        {% if error %}<div class="auth-error">{{ error }}</div>{% endif %}
+        <form method="post" action="{% url 'register' %}">
+          {% csrf_token %}
+          <div class="field">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" value="{{ form.username }}" autocomplete="username" required autofocus {% if disabled %}disabled{% endif %}/>
+          </div>
+          <div class="field">
+            <label for="display_name">Display name</label>
+            <input type="text" id="display_name" name="display_name" value="{{ form.display_name }}" autocomplete="name" placeholder="How your team sees you" {% if disabled %}disabled{% endif %}/>
+          </div>
+          <div class="field">
+            <label for="department_id">Team</label>
+            <select id="department_id" name="department_id" required {% if disabled %}disabled{% endif %}>
+              <option value="">Select team…</option>
+              {% for dept in departments %}
+              <option value="{{ dept.id }}" {% if form.department_id == dept.id|stringformat:"s" %}selected{% endif %}>{{ dept.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% include "includes/auth_password_field.html" with field_id="password" field_name="password" field_label="Password" autocomplete="new-password" required=True disabled=disabled %}
+          {% include "includes/auth_password_field.html" with field_id="password2" field_name="password2" field_label="Confirm password" autocomplete="new-password" required=True disabled=disabled %}
+          <p class="field-hint">At least 8 characters. Avoid common or all-numeric passwords.</p>
+          <div class="auth-actions">
+            <button type="submit" class="btn-auth" {% if disabled %}disabled{% endif %}>Create account</button>
+            <a href="{% url 'login' %}" class="btn-auth-secondary">Back to sign in</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

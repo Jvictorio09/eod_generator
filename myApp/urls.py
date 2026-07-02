@@ -1,14 +1,19 @@
 from django.urls import path
+from django.views.generic import RedirectView
 
 from . import views
 
 urlpatterns = [
-    path("", views.home, name="home"),
+    path("", views.login_view, name="login"),
+    path("login/", RedirectView.as_view(pattern_name="login", permanent=False)),
+    path("workspace/", views.home, name="home"),
     path("history/", views.eod_history_page, name="eod_history"),
-    path("login/", views.login_view, name="login"),
+    path("register/", views.register_view, name="register"),
     path("oversight/login/", views.oversight_login_view, name="oversight_login"),
     path("logout/", views.logout_view, name="logout"),
     path("dashboard/", views.dashboard, name="dashboard"),
+    path("dashboard/projects/", views.project_progress, name="project_progress"),
+    path("api/workspace/bootstrap/", views.api_workspace_bootstrap, name="api_workspace_bootstrap"),
     path("api/profile/", views.api_profile, name="api_profile"),
     path("api/profile/update/", views.api_profile_update, name="api_profile_update"),
     path("api/users/", views.api_users, name="api_users"),
@@ -24,12 +29,19 @@ urlpatterns = [
     path("api/oversight/assistant/summary/", views.api_oversight_assistant_summary, name="api_oversight_assistant_summary"),
     path("api/oversight/assistant/chat/", views.api_oversight_assistant_chat, name="api_oversight_assistant_chat"),
     path("api/oversight/assign-task/", views.api_oversight_assign_task, name="api_oversight_assign_task"),
+    path("api/oversight/tasks/<int:task_id>/", views.api_oversight_delete_task, name="api_oversight_delete_task"),
     path("api/notifications/", views.api_notifications, name="api_notifications"),
     path("api/notifications/read/", views.api_notifications_read, name="api_notifications_read"),
     path("api/insights/consistency/", views.api_insights_consistency, name="api_insights_consistency"),
     path("api/insights/wins/", views.api_insights_wins, name="api_insights_wins"),
+    path("api/insights/projects/", views.api_insights_projects, name="api_insights_projects"),
+    path("api/insights/projects/eod/", views.api_insights_projects_eod, name="api_insights_projects_eod"),
+    path("api/projects/progress/", views.api_project_self_progress, name="api_project_self_progress"),
+    path("api/projects/", views.api_projects, name="api_projects"),
+    path("api/projects/create/", views.api_projects_create, name="api_projects_create"),
     path("api/week-review/", views.api_week_review, name="api_week_review"),
     path("api/search/", views.api_search, name="api_search"),
     path("api/reports/", views.api_reports_history, name="api_reports_history"),
+    path("api/reports/archive/<int:archive_id>/", views.api_report_archive_detail, name="api_report_archive_detail"),
     path("api/reports/<int:report_id>/", views.api_report_detail, name="api_report_detail"),
 ]

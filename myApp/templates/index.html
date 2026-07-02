@@ -39,12 +39,12 @@
   }
   .emp-hero h1 {
     font-size: calc(28px * var(--s));
-    font-weight: 700;
-    letter-spacing: -0.04em;
-    line-height: 1.12;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
     margin: 0 0 6px;
   }
-  .emp-hero h1 span { color: var(--text-3); font-weight: 500; }
+  .emp-hero h1 span { color: var(--text-2); font-weight: 500; }
   .emp-hero-meta {
     display: flex;
     align-items: center;
@@ -131,8 +131,9 @@
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
   }
   [data-theme="dark"] .emp-page .panel {
-    background: linear-gradient(168deg, var(--surface) 0%, rgba(18, 18, 20, 0.97) 100%);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22);
+    background: linear-gradient(168deg, var(--surface) 0%, rgba(12, 22, 42, 0.98) 100%);
+    border-color: rgba(201, 169, 98, 0.1);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
   }
   .emp-page .panel-head {
     padding: calc(14px * var(--s)) calc(18px * var(--s));
@@ -182,7 +183,8 @@
     color: var(--text-2);
     white-space: nowrap;
   }
-  .emp-project-inline .input-project {
+  .emp-project-inline .input-project,
+  .emp-project-inline .select-project {
     flex: 1;
     min-width: 0;
     padding: 8px 11px;
@@ -191,7 +193,91 @@
     border: 1px solid var(--border);
     background: var(--bg);
     color: var(--text);
+    font-family: inherit;
   }
+  .project-insights-list { display: flex; flex-direction: column; gap: 8px; }
+  .project-insight-row {
+    display: grid; grid-template-columns: 1fr auto; gap: 2px 8px;
+    font-size: calc(12px * var(--s));
+    padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+  .project-insight-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .project-insight-name { font-weight: 500; }
+  .project-insight-pct {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: calc(12px * var(--s));
+    color: var(--violet);
+  }
+  .project-pct-input {
+    width: 52px;
+    padding: 4px 6px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: calc(12px * var(--s));
+    text-align: right;
+  }
+  .project-pct-input:focus {
+    outline: none;
+    border-color: var(--violet);
+  }
+  .project-pct-suffix {
+    font-size: calc(11px * var(--s));
+    color: var(--text-3);
+    margin-left: 2px;
+  }
+  .eod-project-progress {
+    margin-bottom: 14px;
+    padding: 12px 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+  }
+  .eod-project-progress-head {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 10px;
+  }
+  .eod-project-progress-head strong {
+    font-size: calc(13px * var(--s));
+    color: var(--text);
+  }
+  .eod-project-progress-head span {
+    font-size: calc(12px * var(--s));
+    color: var(--text-3);
+  }
+  .eod-project-progress-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .eod-project-progress-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    align-items: center;
+    font-size: calc(12px * var(--s));
+  }
+  .eod-project-progress-row label { font-weight: 500; }
+  .project-insight-bar {
+    grid-column: 1 / -1;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--bg-elevated);
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  .project-insight-bar span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--violet), var(--accent));
+  }
+  .task-chip.project { background: var(--violet-dim); color: var(--violet); }
 
   .emp-log-toolbar {
     display: flex;
@@ -303,12 +389,11 @@
     margin: 0 0 8px;
   }
   .lane-add {
-    display: flex;
-    gap: 6px;
     margin-bottom: 8px;
   }
   .lane-add input {
-    flex: 1;
+    width: 100%;
+    box-sizing: border-box;
     min-width: 0;
     padding: calc(10px * var(--s)) calc(11px * var(--s));
     font-size: calc(15px * var(--s));
@@ -323,20 +408,6 @@
     border-color: var(--border-hover);
     box-shadow: 0 0 0 3px var(--accent-dim);
   }
-  .lane-add button {
-    width: calc(34px * var(--s));
-    height: calc(34px * var(--s));
-    flex-shrink: 0;
-    border: none;
-    border-radius: 9px;
-    background: linear-gradient(145deg, var(--text), var(--text-2));
-    color: var(--bg);
-    font-size: calc(17px * var(--s));
-    line-height: 1;
-    cursor: pointer;
-    transition: opacity var(--ease);
-  }
-  .lane-add button:hover { opacity: 0.88; }
   .lane-tasks { flex: 1; }
   .lane-empty {
     font-size: calc(13px * var(--s));
@@ -369,6 +440,11 @@
   }
   [data-theme="light"] .log-action-bar {
     box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08);
+  }
+  [data-theme="dark"] .log-action-bar {
+    border-color: rgba(201, 169, 98, 0.12);
+    background: linear-gradient(180deg, rgba(12, 22, 42, 0.95) 0%, rgba(16, 30, 54, 0.9) 100%);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
   }
   .log-action-copy { flex: 1; min-width: 200px; }
   .log-action-title {
@@ -692,6 +768,28 @@
     flex-shrink: 0;
   }
   .panel-head-link:hover { color: var(--text); }
+  .history-row-wrap {
+    display: flex;
+    align-items: stretch;
+    border-bottom: 1px solid var(--border);
+  }
+  .history-row-wrap .history-row {
+    flex: 1;
+    border-bottom: none;
+  }
+  .history-delete {
+    flex-shrink: 0;
+    width: 40px;
+    border: none;
+    background: transparent;
+    color: var(--text-3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color var(--ease), background var(--ease);
+  }
+  .history-delete:hover { color: var(--red); background: rgba(239,68,68,0.1); }
   .history-row {
     display: flex;
     flex-direction: column;
@@ -765,26 +863,62 @@
     box-sizing: border-box;
   }
   .history-view-all:hover { color: var(--text); background: var(--surface-hover); }
+  .emp-inline-history {
+    margin: 0 calc(14px * var(--s)) calc(16px * var(--s));
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    overflow: hidden;
+  }
+  [data-theme="dark"] .emp-inline-history {
+    border-color: rgba(201, 169, 98, 0.1);
+    background: rgba(12, 22, 42, 0.55);
+  }
+  .emp-inline-history-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: calc(14px * var(--s));
+    font-weight: 600;
+    color: var(--text);
+  }
+  .emp-inline-history-head a {
+    font-size: calc(12px * var(--s));
+    font-weight: 500;
+    color: var(--text-2);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .emp-inline-history-head a:hover { color: var(--text); }
+  .emp-inline-history .eod-history-list { min-height: 0; }
+  .emp-inline-history .history-row {
+    padding: 14px 16px;
+  }
+  .emp-inline-history .side-empty {
+    padding: 20px 16px;
+    font-size: calc(13px * var(--s));
+    color: var(--text-3);
+    text-align: center;
+  }
   .pill-account { font-family: var(--mono); color: var(--text-2); }
   .pill-role { color: var(--violet); background: var(--violet-dim); }
-  .account-banner {
-    margin-bottom: 12px; padding: 10px 14px; border-radius: var(--radius);
-    border: 1px solid var(--border); background: var(--bg-elevated);
-    font-size: calc(12px * var(--s)); color: var(--text-2);
-  }
-  .account-banner strong { color: var(--text); }
+  .nav-emp .nav-actions .nav-link { margin-left: 2px; }
 </style>
 {% endblock %}
 {% block body %}
 <nav class="nav nav-emp">
   <div class="nav-inner">
-    <a class="logo" href="/">
+    <a class="logo" href="{% url 'home' %}">
       <div class="logo-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
       </div>
       CloseOut
     </a>
     <div class="nav-gap"></div>
+    <div class="nav-actions">
     <div class="badge" id="key-status"><span class="badge-dot"></span> Online</div>
     <div class="text-scale-control" role="group" aria-label="Text size">
       <button type="button" id="text-smaller" aria-label="Decrease text size" title="Smaller text">A−</button>
@@ -811,23 +945,18 @@
       <span>Settings</span>
     </button>
     <a class="nav-link" href="/history/">EOD history</a>
-    <a class="nav-link" id="nav-oversight" href="/dashboard/" style="display:none">Team dashboard</a>
     <a class="nav-link" href="/logout/">Sign out</a>
+    </div>
   </div>
 </nav>
 
 <div class="page emp-page">
-
-  <p class="account-banner" id="account-banner" style="display:none" aria-live="polite"></p>
 
   <header class="hero emp-hero">
     <div>
       <h1 id="greeting">Good afternoon<span> — let's wrap up.</span></h1>
       <div class="emp-hero-meta">
         <span id="today-date"></span>
-        <span class="pill" id="user-display">Team member</span>
-        <span class="pill pill-account" id="account-username" style="display:none"></span>
-        <span class="pill pill-role" id="account-role" style="display:none"></span>
         <span class="pill" id="dept-display" style="display:none"></span>
       </div>
     </div>
@@ -841,12 +970,14 @@
         <div class="panel-head emp-log-head">
           <span class="panel-title">Today's log</span>
           <div class="emp-project-inline">
-            <label for="project-input">Project</label>
-            <input type="text" class="input-project" id="project-input" placeholder="optional tag" autocomplete="off"/>
+            <label for="project-select">Project</label>
+            <select class="select-project" id="project-select" aria-label="Project for new tasks">
+              <option value="">No project</option>
+            </select>
           </div>
         </div>
         <div class="emp-log-toolbar">
-          <span class="input-hint"><span><strong>+</strong> adds to your log only — use <strong>Generate</strong> when you're ready</span></span>
+          <span class="input-hint"><span>Type in each section — hit <strong>Generate EOD</strong> when you're ready</span></span>
           <details class="braindump-panel">
             <summary>Brain dump · AI sorts notes</summary>
             <textarea class="braindump-area" id="braindump-text" placeholder="Shipped the login fix, still waiting on design for settings page, tomorrow need to write tests…"></textarea>
@@ -882,6 +1013,15 @@
               Generate EOD
             </button>
           </div>
+          <section class="emp-inline-history" id="emp-inline-history" aria-label="Posted EOD history">
+            <div class="emp-inline-history-head">
+              <span>Posted EODs</span>
+              <a href="/history/">View all</a>
+            </div>
+            <div class="eod-history-list" id="eod-history-inline">
+              <div class="side-empty">Post an EOD to see it here.</div>
+            </div>
+          </section>
         </div>
       </div>
     </div>
@@ -921,11 +1061,23 @@
         <details class="emp-shortcuts">
           <summary>Keyboard shortcuts</summary>
           <div class="shortcut-list">
-            <div class="shortcut-row"><span>Add in section</span><kbd>Enter</kbd></div>
+            <div class="shortcut-row"><span>Type in a section</span><kbd>Tab</kbd></div>
             <div class="shortcut-row"><span>Generate</span><kbd>Ctrl</kbd> <kbd>↵</kbd></div>
             <div class="shortcut-row"><span>Close</span><kbd>Esc</kbd></div>
           </div>
         </details>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">Projects</span>
+          <span class="panel-hint" style="font-size:calc(11px * var(--s));color:var(--text-3)">Set when you post EOD</span>
+        </div>
+        <div class="panel-body">
+          <div class="project-insights-list" id="project-insights-list">
+            <div class="side-empty">Tag tasks with a project to see activity here.</div>
+          </div>
+        </div>
       </div>
 
       <div class="panel">
@@ -984,6 +1136,13 @@
       <div class="gen-options">
         <div><label>Tone</label><select id="gen-tone"><option value="professional">Professional</option><option value="casual">Casual</option><option value="concise">Concise</option></select></div>
         <div><label>Length</label><select id="gen-length"><option value="brief">Brief</option><option value="standard" selected>Standard</option><option value="detailed">Detailed</option></select></div>
+      </div>
+      <div class="eod-project-progress" id="eod-project-progress" hidden>
+        <div class="eod-project-progress-head">
+          <strong>Project progress</strong>
+          <span>How far along are you on each project today?</span>
+        </div>
+        <div class="eod-project-progress-list" id="eod-project-progress-list"></div>
       </div>
       <div id="report-output">
         <div class="loading"><div class="spinner"></div>Generating…</div>
@@ -1110,6 +1269,10 @@
 const KEY_THEME = 'closeout:theme';
 const KEY_TEXT = 'closeout:emp-text';
 const TEXT_SCALES = [92, 102, 112, 124, 138];
+const INITIAL_PROFILE = {{ initial_profile_json|safe }};
+const INITIAL_PROJECTS = {{ initial_projects_json|safe }};
+const INITIAL_WORKSPACE = {{ initial_workspace_json|safe }};
+const KEY_PROJECT = 'closeout:last-project';
 
   function getSystemTheme() {
     return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
@@ -1169,7 +1332,22 @@ const TEXT_SCALES = [92, 102, 112, 124, 138];
   let accountRole = '';
 
   const $ = id => document.getElementById(id);
-  const projectInput = $('project-input');
+  const projectSelect = $('project-select');
+  let teamProjects = Array.isArray(INITIAL_PROJECTS) ? INITIAL_PROJECTS.slice() : [];
+
+  function renderProjectOptions(projects, selectedId) {
+    if (!projectSelect) return;
+    const saved = selectedId || localStorage.getItem(KEY_PROJECT) || '';
+    projectSelect.innerHTML = '<option value="">No project</option>' + projects.map(p =>
+      `<option value="${p.id}"${String(p.id) === String(saved) ? ' selected' : ''}>${escapeHtml(p.name)}</option>`
+    ).join('');
+  }
+
+  projectSelect?.addEventListener('change', () => {
+    const val = projectSelect.value;
+    if (val) localStorage.setItem(KEY_PROJECT, val);
+    else localStorage.removeItem(KEY_PROJECT);
+  });
   const container = $('task-container');
   const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -1210,41 +1388,88 @@ const TEXT_SCALES = [92, 102, 112, 124, 138];
   }
 
   async function openHistoryReport(id) {
+    const sid = String(id);
     try {
-      const rep = await api('/api/reports/' + id + '/');
+      const url = sid.startsWith('a')
+        ? `/api/reports/archive/${sid.slice(1)}/`
+        : `/api/reports/${sid}/`;
+      const rep = await api(url);
       openReportDetail(rep);
     } catch (e) { toast(e.message); }
   }
 
-  async function loadReportHistory() {
-    const list = $('eod-history-list');
-    if (!list) return;
-    try {
-      const d = await api('/api/reports/?limit=30&status=SUBMITTED');
-      const reports = (d.reports || []).slice(0, 3);
-      if (!reports.length) {
-        list.innerHTML = '<div class="side-empty">Generate or post to build your history.</div>';
-        return;
-      }
-      const rows = reports.map(r => {
-        const preview = r.preview || r.excerpt || 'No preview';
-        return `<button type="button" class="history-row" data-report-id="${r.id}">
+  async function deleteHistoryReport(id) {
+    const sid = String(id);
+    const url = sid.startsWith('a')
+      ? `/api/reports/archive/${sid.slice(1)}/`
+      : `/api/reports/${sid}/`;
+    await api(url, { method: 'DELETE' });
+  }
+
+  function renderReportHistoryInto(listEl, reports, totalCount, { limit = 3, emptyText } = {}) {
+    if (!listEl) return;
+    const slice = reports.slice(0, limit);
+    if (!slice.length) {
+      listEl.innerHTML = `<div class="side-empty">${emptyText || 'Generate or post to build your history.'}</div>`;
+      return;
+    }
+    const rows = slice.map(r => {
+      const preview = r.preview || r.excerpt || 'No preview';
+      return `<div class="history-row-wrap">
+        <button type="button" class="history-row" data-report-id="${r.id}">
           <div class="history-row-top">
             <span class="history-date">${escapeHtml(formatReportDate(r.date))}</span>
             <span class="history-status posted">Posted</span>
           </div>
           <p class="history-excerpt">${escapeHtml(preview)}</p>
-        </button>`;
-      }).join('');
-      const more = (d.reports || []).length > 3
-        ? '<a class="history-view-all" href="/history/">View all posted EODs →</a>'
-        : '<a class="history-view-all" href="/history/">Open full history →</a>';
-      list.innerHTML = `<div class="eod-history-entries">${rows}</div>${more}`;
-      list.querySelectorAll('[data-report-id]').forEach(btn => {
-        btn.onclick = () => openHistoryReport(btn.dataset.reportId);
+        </button>
+        <button type="button" class="history-delete" data-delete-report="${r.id}" title="Delete EOD" aria-label="Delete EOD">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+      </div>`;
+    }).join('');
+    const more = totalCount > limit
+      ? '<a class="history-view-all" href="/history/">View all posted EODs →</a>'
+      : '<a class="history-view-all" href="/history/">Open full history →</a>';
+    listEl.innerHTML = `<div class="eod-history-entries">${rows}</div>${more}`;
+    listEl.querySelectorAll('[data-report-id]').forEach(btn => {
+      btn.onclick = () => openHistoryReport(btn.dataset.reportId);
+    });
+    listEl.querySelectorAll('[data-delete-report]').forEach(btn => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
+        if (!confirm('Delete this EOD from your history? This cannot be undone.')) return;
+        try {
+          await deleteHistoryReport(btn.dataset.deleteReport);
+          await loadReportHistory();
+          toast('EOD deleted');
+        } catch (err) { toast(err.message); }
+      };
+    });
+  }
+
+  async function loadReportHistory({ scrollInline = false } = {}) {
+    const sidebar = $('eod-history-list');
+    const inline = $('eod-history-inline');
+    if (!sidebar && !inline) return;
+    try {
+      const d = await api('/api/reports/?limit=30&status=SUBMITTED');
+      const reports = d.reports || [];
+      renderReportHistoryInto(sidebar, reports, reports.length, {
+        limit: 3,
+        emptyText: 'Generate or post to build your history.',
       });
+      renderReportHistoryInto(inline, reports, reports.length, {
+        limit: 5,
+        emptyText: 'Post an EOD to see it here.',
+      });
+      if (scrollInline && reports.length && $('emp-inline-history')) {
+        $('emp-inline-history').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
     } catch (e) {
-      list.innerHTML = '<div class="side-empty">Could not load history.</div>';
+      const err = '<div class="side-empty">Could not load history.</div>';
+      if (sidebar) sidebar.innerHTML = err;
+      if (inline) inline.innerHTML = err;
     }
   }
 
@@ -1276,7 +1501,7 @@ const TEXT_SCALES = [92, 102, 112, 124, 138];
     }
     if (markAll) markAll.style.display = '';
     list.innerHTML = notifyItems.map(n => `
-      <button type="button" class="notify-item" data-nid="${n.id}">
+      <button type="button" class="notify-item" data-nid="${n.id}" data-link="${escapeHtml(n.link || '')}">
         <p>${escapeHtml(n.message)}</p>
         <time>${escapeHtml(formatNotifyTime(n.created_at))}</time>
       </button>
@@ -1290,6 +1515,11 @@ const TEXT_SCALES = [92, 102, 112, 124, 138];
         notifyItems = notifyItems.filter(x => x.id !== parseInt(item.dataset.nid, 10));
         renderNotifyDropdown();
         setNotifyOpen(false);
+        const link = item.dataset.link;
+        if (link) {
+          window.location.href = link;
+          return;
+        }
         await loadTasks();
         toast('Task added to your log');
       };
@@ -1312,37 +1542,22 @@ const TEXT_SCALES = [92, 102, 112, 124, 138];
   }
 
   function greet() {
+    if (window.closeoutGreeting) {
+      return window.closeoutGreeting({
+        name: settings.name || '',
+        html: true,
+      });
+    }
     const h = new Date().getHours();
-    if (h < 12) return 'Good morning';
-    if (h < 17) return 'Good afternoon';
-    return 'Good evening';
+    let g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+    const first = settings.name?.split(' ')[0];
+    return first
+      ? `${g}, ${escapeHtml(first)}<span> — let's wrap up.</span>`
+      : `${g}<span> — let's wrap up.</span>`;
   }
 
   function updateUser() {
-    const name = settings.name || 'Team member';
-    $('user-display').textContent = name;
-    const userPill = $('account-username');
-    const rolePill = $('account-role');
-    const banner = $('account-banner');
-    if (accountUsername) {
-      if (userPill) {
-        userPill.textContent = '@' + accountUsername;
-        userPill.style.display = '';
-      }
-      if (rolePill && accountRole) {
-        const labels = { EMPLOYEE: 'Employee', MANAGER: 'Manager', BOSS: 'Boss' };
-        rolePill.textContent = labels[accountRole] || accountRole;
-        rolePill.style.display = '';
-      }
-      if (banner) {
-        banner.innerHTML = 'Logged in as <strong>@' + escapeHtml(accountUsername) + '</strong> — tasks and EOD posts are saved to this account only.';
-        banner.style.display = '';
-      }
-    }
-    const first = settings.name?.split(' ')[0];
-    $('greeting').innerHTML = first
-      ? `${greet()}, ${escapeHtml(first)}<span> — let's wrap up.</span>`
-      : `${greet()}<span> — let's wrap up.</span>`;
+    $('greeting').innerHTML = greet();
     if (settings.dept) {
       $('dept-display').textContent = settings.dept;
       $('dept-display').style.display = '';
@@ -1379,20 +1594,164 @@ const TEXT_SCALES = [92, 102, 112, 124, 138];
 
   async function loadInsights() {
     try {
-      const c = await api('/api/insights/consistency/');
-      if ($('consistency-pct')) $('consistency-pct').textContent = c.active_days + '/' + c.window_days;
-      if ($('consistency-msg')) $('consistency-msg').textContent = c.message;
-      const w = await api('/api/insights/wins/');
-      const box = $('wins-list');
-      if (!box) return;
-      if (!w.wins?.length) {
+      const [c, w, prog] = await Promise.all([
+        api('/api/insights/consistency/'),
+        api('/api/insights/wins/'),
+        api('/api/projects/progress/'),
+      ]);
+      applyInsightsData(c, w.wins);
+      renderProjectSelfProgress(prog.projects);
+    } catch (e) { console.error(e); }
+  }
+
+  function applyInsightsData(consistency, wins) {
+    const c = consistency || {};
+    if ($('consistency-pct')) $('consistency-pct').textContent = c.active_days + '/' + c.window_days;
+    if ($('consistency-msg')) $('consistency-msg').textContent = c.message || '';
+    const box = $('wins-list');
+    if (box) {
+      const rows = wins || [];
+      if (!rows.length) {
         box.innerHTML = '<div class="side-empty">Wins appear as you complete tasks.</div>';
       } else {
-        box.innerHTML = w.wins.map(win =>
-          `<div class="win-item"><div class="win-date">${escapeHtml(win.date)}</div><div class="win-title">${escapeHtml(win.title)}</div></div>`
+        box.innerHTML = rows.map(win =>
+          `<div class="win-item"><div class="win-date">${escapeHtml(win.date)}</div><div class="win-title">${escapeHtml(win.title)}${win.project ? ` <span class="task-chip project">${escapeHtml(win.project)}</span>` : ''}</div></div>`
         ).join('');
       }
-    } catch (e) { console.error(e); }
+    }
+  }
+
+  function taskProjectsForEod() {
+    const map = new Map();
+    tasks.forEach(t => {
+      const id = t.project_id || null;
+      const name = (t.project || '').trim();
+      if (!id && !name) return;
+      const key = id ? `id:${id}` : `name:${name.toLowerCase()}`;
+      if (!map.has(key)) map.set(key, { project_id: id, name: name || 'Project' });
+    });
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  let eodProgressProjects = [];
+
+  function renderEodProjectProgress(prefill = []) {
+    const wrap = $('eod-project-progress');
+    const list = $('eod-project-progress-list');
+    if (!wrap || !list) return;
+    eodProgressProjects = taskProjectsForEod();
+    if (!eodProgressProjects.length) {
+      wrap.hidden = true;
+      list.innerHTML = '';
+      return;
+    }
+    const prefillMap = new Map(
+      (prefill || []).map(item => [item.project_id || item.name.toLowerCase(), item.percent ?? 0])
+    );
+    wrap.hidden = false;
+    list.innerHTML = eodProgressProjects.map((p, idx) => {
+      const val = prefillMap.get(p.project_id) ?? prefillMap.get(p.name.toLowerCase()) ?? 0;
+      return `<div class="eod-project-progress-row">
+        <label for="eod-pct-${idx}">${escapeHtml(p.name)}</label>
+        <div style="display:flex;align-items:center;gap:2px">
+          <input type="number" class="project-pct-input" id="eod-pct-${idx}"
+            min="0" max="100" step="1" data-eod-idx="${idx}" value="${val}"/>
+          <span class="project-pct-suffix">%</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function collectEodProjectProgress() {
+    return eodProgressProjects.map((p, idx) => {
+      const input = document.querySelector(`#eod-project-progress-list [data-eod-idx="${idx}"]`);
+      let val = parseInt(input?.value, 10);
+      if (isNaN(val)) val = 0;
+      val = Math.max(0, Math.min(100, val));
+      if (input) input.value = val;
+      return { project_id: p.project_id, name: p.name, percent: val };
+    });
+  }
+
+  async function runEodGenerate() {
+    const progress = collectEodProjectProgress();
+    const d = await api('/api/generate-eod/', {
+      method: 'POST',
+      body: JSON.stringify({
+        model: settings.model,
+        format: genFormat,
+        tone: $('gen-tone').value,
+        length: $('gen-length').value,
+        date: todayISO(),
+        project_progress: progress,
+      }),
+    });
+    renderEodProjectProgress(d.project_progress || progress);
+    $('report-output').innerHTML = `<div class="report">${escapeHtml(d.report)}</div>`;
+  }
+
+  function renderProjectSelfProgress(rows) {
+    const box = $('project-insights-list');
+    if (!box) return;
+    const list = (rows || []).filter(item => item.percent > 0);
+    if (!list.length) {
+      box.innerHTML = '<div class="side-empty">Tag tasks with a project, then set % when you generate your EOD.</div>';
+      return;
+    }
+    box.innerHTML = list.map(item => `
+      <div class="project-insight-row">
+        <div class="project-insight-name">${escapeHtml(item.name)}</div>
+        <div class="project-insight-pct">${item.percent ?? 0}%</div>
+        <div class="project-insight-bar"><span style="width:${item.percent ?? 0}%"></span></div>
+      </div>
+    `).join('');
+  }
+
+  function applyWorkspaceBootstrap(data) {
+    if (!data) return false;
+    tasks = data.tasks || [];
+    staleElsewhere = data.stale_elsewhere || [];
+    lastRolledCount = data.rolled_count || 0;
+    if (data.users) teamUsers = data.users;
+    if (data.projects?.length) teamProjects = data.projects;
+    notifyItems = data.notifications || [];
+    renderNotifyDropdown();
+    applyInsightsData(data.consistency, data.wins);
+    renderProjectSelfProgress(data.project_self_progress);
+    renderReportHistoryInto($('eod-history-list'), data.reports || [], (data.reports || []).length, {
+      limit: 3,
+      emptyText: 'Generate or post to build your history.',
+    });
+    renderReportHistoryInto($('eod-history-inline'), data.reports || [], (data.reports || []).length, {
+      limit: 5,
+      emptyText: 'Post an EOD to see it here.',
+    });
+    renderBanners();
+    render();
+    renderProjectOptions(teamProjects);
+    if (lastRolledCount > 0) {
+      toast(`${lastRolledCount} item${lastRolledCount > 1 ? 's' : ''} rolled from yesterday`);
+    }
+    return true;
+  }
+
+  async function refreshWorkspace() {
+    const data = await api('/api/workspace/bootstrap/');
+    applyWorkspaceBootstrap(data);
+  }
+
+  async function loadProjects() {
+    if (teamProjects.length) {
+      renderProjectOptions(teamProjects);
+      return;
+    }
+    try {
+      const data = await api('/api/projects/');
+      teamProjects = data.projects || [];
+      renderProjectOptions(teamProjects);
+    } catch (e) {
+      renderProjectOptions(teamProjects);
+    }
   }
 
   async function runSearch() {
@@ -1424,8 +1783,7 @@ const TEXT_SCALES = [92, 102, 112, 124, 138];
     return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
-  async function loadProfile() {
-    const p = await api('/api/profile/');
+  function applyProfileData(p) {
     settings = {
       name: p.display_name || '',
       dept: p.department || '',
@@ -1440,11 +1798,15 @@ const TEXT_SCALES = [92, 102, 112, 124, 138];
       quiet_hours_start: p.quiet_hours_start,
       quiet_hours_end: p.quiet_hours_end,
     };
-    hasOversight = !!(p.has_oversight || p.is_manager);
+    hasOversight = false;
     accountUsername = p.username || '';
     accountRole = p.role || '';
     updateUser();
     syncGenOptions();
+  }
+
+  async function loadProfile() {
+    applyProfileData(await api('/api/profile/'));
     loadInsights();
   }
 
@@ -1488,7 +1850,67 @@ const TEXT_SCALES = [92, 102, 112, 124, 138];
     });
   }
 
+  function laneInputValues() {
+    const values = {};
+    document.querySelectorAll('[data-lane-input]').forEach(inp => {
+      values[inp.dataset.laneInput] = inp.value;
+    });
+    return values;
+  }
+
+  function restoreLaneInputs(values) {
+    document.querySelectorAll('[data-lane-input]').forEach(inp => {
+      if (values[inp.dataset.laneInput] !== undefined) {
+        inp.value = values[inp.dataset.laneInput];
+      }
+    });
+  }
+
+  function hasLaneInputText() {
+    return [...document.querySelectorAll('[data-lane-input]')].some(inp => inp.value.trim());
+  }
+
+  function collectLaneInputs() {
+    const items = [];
+    document.querySelectorAll('[data-lane-input]').forEach(inp => {
+      const raw = inp.value.trim();
+      if (!raw) return;
+      const lines = raw.includes('\n')
+        ? raw.split('\n').map(line => line.trim()).filter(Boolean)
+        : [raw];
+      lines.forEach(title => items.push({ title, status: inp.dataset.laneInput }));
+    });
+    return items;
+  }
+
+  async function syncLaneInputsToTasks() {
+    const items = collectLaneInputs();
+    if (!items.length) return;
+    const projectId = projectSelect?.value;
+    const assignedTasks = tasks.filter(t => t.assigned_by);
+    await api('/api/tasks/clear/', {
+      method: 'POST',
+      body: JSON.stringify({ date: todayISO(), keep_assigned: true }),
+    });
+    const body = {
+      date: todayISO(),
+      tasks: items.map(item => {
+        const row = { title: item.title, status: item.status };
+        if (projectId) row.project_id = parseInt(projectId, 10);
+        return row;
+      }),
+    };
+    const d = await api('/api/tasks/bulk/', { method: 'POST', body: JSON.stringify(body) });
+    tasks = [...assignedTasks, ...(d.tasks || [])];
+    document.querySelectorAll('[data-lane-input]').forEach(inp => {
+      if (inp.value.trim()) inp.value = '';
+    });
+    render();
+  }
+
   function render() {
+    const savedInputs = laneInputValues();
+
     renderBanners();
 
     let html = '<div class="log-template">';
@@ -1502,7 +1924,6 @@ const TEXT_SCALES = [92, 102, 112, 124, 138];
         <p class="lane-hint">${lane.hint}</p>
         <div class="lane-add">
           <input type="text" data-lane-input="${lane.status}" placeholder="${lane.placeholder}" autocomplete="off"/>
-          <button type="button" data-lane-add="${lane.status}" aria-label="Add to ${lane.label}">+</button>
         </div>
         <ul class="tasks lane-tasks">${laneTasks.map(t => renderTask(t)).join('')}</ul>
         ${laneTasks.length ? '' : '<p class="lane-empty">Nothing here yet</p>'}
@@ -1511,7 +1932,8 @@ const TEXT_SCALES = [92, 102, 112, 124, 138];
     html += '</div>';
 
     container.innerHTML = html;
-    bindLaneAdds();
+    bindLaneInputs();
+    restoreLaneInputs(savedInputs);
     bind();
 
     if (tasks.length) {
@@ -1525,7 +1947,7 @@ const TEXT_SCALES = [92, 102, 112, 124, 138];
   }
 
   function updateActionBar() {
-    const hasTasks = tasks.length > 0;
+    const hasTasks = tasks.length > 0 || hasLaneInputText();
     const genBtn = $('btn-generate');
     if (genBtn) genBtn.disabled = !hasTasks;
     document.querySelectorAll('.log-action-steps .step[data-step="add"]').forEach(el => {
@@ -1533,17 +1955,9 @@ const TEXT_SCALES = [92, 102, 112, 124, 138];
     });
   }
 
-  function bindLaneAdds() {
-    document.querySelectorAll('[data-lane-add]').forEach(btn => {
-      btn.onclick = () => addTask(btn.dataset.laneAdd);
-    });
+  function bindLaneInputs() {
     document.querySelectorAll('[data-lane-input]').forEach(inp => {
-      inp.onkeydown = e => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          addTask(inp.dataset.laneInput, inp);
-        }
-      };
+      inp.oninput = () => updateActionBar();
     });
   }
 
@@ -1589,6 +2003,7 @@ const TEXT_SCALES = [92, 102, 112, 124, 138];
 
     const chips = [];
     if (t.from_boss) chips.push('<span class="task-chip boss">From boss</span>');
+    if (t.project) chips.push(`<span class="task-chip project">${escapeHtml(t.project)}</span>`);
     if (isBlocked && b) chips.push(`<span class="task-chip warn">${b.kind === 'NEEDS_FROM_OTHERS' ? 'Needs others' : 'Blocked'}</span>`);
     if (isTmr) chips.push('<span class="task-chip plan">Tomorrow</span>');
     if (t.is_stale && t.status === 'IN_PROGRESS') chips.push('<span class="task-chip warn">Stale</span>');
@@ -1717,33 +2132,12 @@ const TEXT_SCALES = [92, 102, 112, 124, 138];
     });
   }
 
-  async function addTask(status, inputEl) {
-    const input = inputEl || document.querySelector(`[data-lane-input="${status || 'IN_PROGRESS'}"]`);
-    const title = (input?.value || '').trim();
-    if (!title) return;
-    try {
-      const d = await api('/api/tasks/', {
-        method: 'POST',
-        body: JSON.stringify({
-          title,
-          project: projectInput.value.trim(),
-          date: todayISO(),
-          status: status || 'IN_PROGRESS',
-        }),
-      });
-      tasks.unshift(d.task);
-      if (input) input.value = '';
-      input?.focus();
-      render();
-    } catch (e) { toast(e.message); }
-  }
-
-  projectInput.onkeydown = e => {
+  projectSelect?.addEventListener('keydown', e => {
     if (e.key === 'Enter') {
       e.preventDefault();
       focusFirstLane();
     }
-  };
+  });
 
   $('btn-clear').onclick = async () => {
     if (!confirm('Clear all tasks for today?')) return;
@@ -1877,22 +2271,62 @@ const TEXT_SCALES = [92, 102, 112, 124, 138];
   };
 
   $('btn-generate')?.addEventListener('click', generate);
-  $('btn-regenerate').onclick = generate;
-
-  async function generate() {
-    if (!tasks.length) { toast('Add a task first'); focusFirstLane(); return; }
-    openM('modal-report');
-    const postBtn = $('btn-post-eod');
-    if (postBtn) { postBtn.style.display = ''; postBtn.textContent = 'Post EOD'; }
-    $('report-meta').textContent = `${settings.name || 'Team member'} · ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  $('btn-regenerate').onclick = async () => {
     $('report-output').innerHTML = '<div class="loading"><div class="spinner"></div>Generating…</div>';
     try {
-      const d = await api('/api/generate-eod/', { method: 'POST', body: JSON.stringify({ model: settings.model, format: genFormat, tone: $('gen-tone').value, length: $('gen-length').value, date: todayISO() }) });
-      $('report-output').innerHTML = `<div class="report">${escapeHtml(d.report)}</div>`;
-      await loadReportHistory();
+      await runEodGenerate();
     } catch (err) {
       $('report-output').innerHTML = `<div class="report" style="color:var(--red)">${escapeHtml(err.message)}</div>`;
     }
+  };
+
+  let generatingEod = false;
+  let postingEod = false;
+
+  async function generate() {
+    if (generatingEod) return;
+    if (!tasks.length && !hasLaneInputText()) {
+      toast('Type at least one item in your log');
+      focusFirstLane();
+      return;
+    }
+    generatingEod = true;
+    const genBtn = $('btn-generate');
+    if (genBtn) genBtn.disabled = true;
+    try {
+      if (hasLaneInputText()) {
+        await syncLaneInputsToTasks();
+      }
+      if (!tasks.length) {
+        toast('Type at least one item in your log');
+        focusFirstLane();
+        return;
+      }
+      await loadTasks();
+    } catch (err) {
+      toast(err.message || 'Could not save your log');
+      generatingEod = false;
+      updateActionBar();
+      return;
+    }
+    openM('modal-report');
+    const postBtn = $('btn-post-eod');
+    if (postBtn) {
+      postBtn.style.display = '';
+      postBtn.disabled = false;
+      postBtn.textContent = 'Post EOD';
+      postBtn.removeAttribute('aria-busy');
+    }
+    $('report-meta').textContent = `${settings.name || 'Team member'} · ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    renderEodProjectProgress();
+    $('report-output').innerHTML = '<div class="loading"><div class="spinner"></div>Generating…</div>';
+    try {
+      await runEodGenerate();
+    } catch (err) {
+      $('report-output').innerHTML = `<div class="report" style="color:var(--red)">${escapeHtml(err.message)}</div>`;
+    }
+    generatingEod = false;
+    updateActionBar();
   }
 
   document.querySelectorAll('.format-tab').forEach(tab => {
@@ -1929,9 +2363,19 @@ const TEXT_SCALES = [92, 102, 112, 124, 138];
   };
 
   $('btn-post-eod').onclick = async () => {
-    $('btn-post-eod').disabled = true;
+    if (postingEod) return;
+    const btn = $('btn-post-eod');
+    const content = $('report-output').querySelector('.report')?.textContent?.trim();
+    if (!content) {
+      toast('Generate your EOD first');
+      return;
+    }
+    postingEod = true;
+    btn.disabled = true;
+    btn.textContent = 'Posting…';
+    btn.setAttribute('aria-busy', 'true');
     try {
-      await api('/api/eod/submit/', {
+      const res = await api('/api/eod/submit/', {
         method: 'POST',
         body: JSON.stringify({
           model: settings.model,
@@ -1939,16 +2383,27 @@ const TEXT_SCALES = [92, 102, 112, 124, 138];
           tone: $('gen-tone').value,
           length: $('gen-length').value,
           date: todayISO(),
+          content,
+          project_progress: collectEodProjectProgress(),
         }),
       });
+      if (res.content) {
+        $('report-output').innerHTML = `<div class="report">${escapeHtml(res.content)}</div>`;
+      }
       toast('Posted as @' + accountUsername);
-      const postBtn = $('btn-post-eod');
-      if (postBtn) { postBtn.style.display = 'none'; }
-      await loadReportHistory();
+      btn.textContent = 'Posted ✓';
+      closeM('modal-report');
+      await refreshWorkspace();
+      if ($('emp-inline-history')) {
+        $('emp-inline-history').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
     } catch (e) {
       toast(e.message);
+      btn.textContent = 'Post EOD';
     }
-    $('btn-post-eod').disabled = false;
+    postingEod = false;
+    btn.disabled = false;
+    btn.removeAttribute('aria-busy');
   };
 
   $('btn-notify')?.addEventListener('click', (e) => {
@@ -1999,17 +2454,23 @@ const TEXT_SCALES = [92, 102, 112, 124, 138];
       weekday: 'long', month: 'short', day: 'numeric', year: 'numeric'
     });
     render();
+    renderProjectOptions(teamProjects);
     try {
-      await loadProfile();
-      if (hasOversight) {
-        const navOversight = $('nav-oversight');
-        if (navOversight) navOversight.style.display = '';
+      if (INITIAL_PROFILE?.username) {
+        applyProfileData(INITIAL_PROFILE);
       }
-      await loadUsers();
-      await loadTasks();
-      await loadReportHistory();
-      await loadNotifications();
-      setInterval(loadNotifications, 60000);
+      if (!applyWorkspaceBootstrap(INITIAL_WORKSPACE)) {
+        await refreshWorkspace();
+      }
+      setTimeout(() => {
+        if (!document.hidden && !notifyItems.length) loadNotifications();
+      }, 30000);
+      setInterval(() => {
+        if (!document.hidden) loadNotifications();
+      }, 120000);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) loadNotifications();
+      });
     } catch (e) {
       console.error(e);
       toast(e.message || 'Failed to load');
